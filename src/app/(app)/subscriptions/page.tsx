@@ -57,13 +57,13 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
     <div>
       <PageHeader title="Subskrypcje" />
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-5">
         <ScopeTabs active={typ} href={(t) => qs({ typ: t, kat: undefined })} />
 
         {(cats.length > 1 || kat) && (
           <ChipScroller
             label="Kategorie"
-            className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 text-sm [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
+            className="-mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 text-sm [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
           >
             <Link
               href={qs({ kat: undefined })}
