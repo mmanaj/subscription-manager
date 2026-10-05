@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { backfillLogos } from "@/lib/logos";
 import { AlertTriangle, CalendarClock, CreditCard, Hourglass, TrendingUp } from "lucide-react";
 import { Bars } from "@/components/bars";
 import { PaymentRow } from "@/components/payment-row";
@@ -14,6 +16,7 @@ export default async function Dashboard(props: PageProps<"/">) {
   const { typ } = await props.searchParams;
   const scope = isScope(typ) ? typ : undefined;
   const data = await loadAll();
+  after(() => backfillLogos());
   const st = dashboardStats(data, scope);
   const scopesInUse = new Set(data.subs.map((s) => s.scope));
 

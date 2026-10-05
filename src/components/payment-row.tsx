@@ -12,7 +12,7 @@ export function PaymentRow({ p, today }: { p: Payment; today: string }) {
         <div className="text-xl font-black leading-none tracking-tight text-obsidian">{dateShort(p.date).split(" ")[0]}</div>
         <div className="text-[11px] font-semibold uppercase text-pebble">{dateShort(p.date).split(" ")[1]}</div>
       </div>
-      <Avatar name={s.name} color={s.color} size={40} />
+      <Avatar name={s.name} color={s.color} logo={s.logo} size={40} />
       <div className="min-w-0 flex-1">
         <div className="truncate font-semibold text-obsidian">{s.name}</div>
         <div className="truncate text-sm text-slate">

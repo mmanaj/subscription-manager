@@ -4,7 +4,9 @@ import { ExternalLink, Pencil } from "lucide-react";
 import { cancelSubscription, deleteSubscription, setStatus } from "@/app/actions";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PriceHistory } from "@/components/price-history";
-import { Avatar, BigMoney, btn, Tag } from "@/components/ui";
+import { LogoSheet } from "@/components/logo-sheet";
+import { logoDomainFor } from "@/lib/logo-domains";
+import { BigMoney, btn, Tag } from "@/components/ui";
 import { chargesBetween, cycleLabel, monthlyFactor } from "@/lib/billing";
 import { addDays, addMonths } from "@/lib/dates";
 import { cardExpiry, loadOne, SCOPES, sum } from "@/lib/data";
@@ -45,7 +47,14 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
 
       <header className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          <Avatar name={s.name} color={s.color} size={64} />
+          <LogoSheet
+            id={s.id}
+            name={s.name}
+            color={s.color}
+            logo={s.logo}
+            domain={s.logoCustom && !s.logo ? null : logoDomainFor(s)}
+            overridden={s.logoCustom || !!s.logoDomain}
+          />
           <div className="min-w-0">
             <h1 className="heading truncate text-[40px] sm:text-[61px]">{s.name}</h1>
             <div className="mt-1 flex flex-wrap gap-2">

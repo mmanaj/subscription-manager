@@ -12,8 +12,37 @@ export const btn = {
     "inline-flex items-center justify-center gap-2 rounded-full border border-alarm px-6 py-3 font-semibold text-alarm transition active:scale-[0.97] hover:bg-alarm hover:text-paper",
 };
 
-export function Avatar({ name, color, size = 44 }: { name: string; color: string | null; size?: number }) {
+export function Avatar({
+  name,
+  color,
+  size = 44,
+  logo,
+}: {
+  name: string;
+  color: string | null;
+  size?: number;
+  logo?: { src: string; fullBleed: boolean } | null;
+}) {
   const s = swatch(color);
+  if (logo) {
+    return (
+      <span
+        aria-hidden
+        className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-paper shadow-hairline"
+        style={{ width: size, height: size }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- tiny auth-protected icon, no optimisation needed */}
+        <img
+          src={logo.src}
+          alt=""
+          width={size}
+          height={size}
+          loading="lazy"
+          className={logo.fullBleed ? "h-full w-full object-cover" : "h-full w-full object-contain p-[18%]"}
+        />
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden

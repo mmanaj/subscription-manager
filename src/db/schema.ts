@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   integer,
   numeric,
@@ -44,6 +45,14 @@ export const subscriptions = pgTable("subscriptions", {
   color: text("color").notNull().default("forest"),
   url: text("url"),
   notes: text("notes"),
+  /** Site the logo is taken from (auto-detected or set by hand) */
+  logoDomain: text("logo_domain"),
+  /** Bumped whenever the stored logo changes; null = no logo, show monogram */
+  logoVersion: integer("logo_version"),
+  /** Set after an automatic lookup ran, so it isn't retried on every view */
+  logoCheckedAt: timestamp("logo_checked_at", { withTimezone: true }),
+  /** User uploaded their own image — never overwritten automatically */
+  logoCustom: boolean("logo_custom").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -64,6 +73,18 @@ export const priceChanges = pgTable("price_changes", {
   oldAmount: numeric("old_amount", { precision: 12, scale: 2 }).notNull(),
   newAmount: numeric("new_amount", { precision: 12, scale: 2 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Logo images kept apart so listing subscriptions never loads image bytes. */
+export const logos = pgTable("logos", {
+  subscriptionId: integer("subscription_id")
+    .primaryKey()
+    .references(() => subscriptions.id, { onDelete: "cascade" }),
+  data: text("data").notNull(), // base64
+  contentType: text("content_type").notNull(),
+  /** Full-bleed square icon (apple-touch-icon) vs. small favicon that needs padding */
+  fullBleed: boolean("full_bleed").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type Card = typeof cards.$inferSelect;

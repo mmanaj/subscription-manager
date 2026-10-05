@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { backfillLogos } from "@/lib/logos";
 import { Avatar, btn, Empty, PageHeader, Segments, Tag } from "@/components/ui";
 import { isScope, loadAll, SCOPES, sum, type EnrichedSub } from "@/lib/data";
 import { cycleLabel } from "@/lib/billing";
@@ -25,6 +27,7 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
   const sort = (typeof sp.s === "string" && sp.s in sorts ? sp.s : "next") as keyof typeof sorts;
   const typ = isScope(sp.typ) ? sp.typ : undefined;
   const { subs, today } = await loadAll();
+  after(() => backfillLogos());
   const list = subs.filter((s) => filters[f].fn(s) && (!typ || s.scope === typ)).sort(sorts[sort].fn);
   const qs = (patch: Record<string, string | undefined>) => {
     const q = new URLSearchParams(Object.entries({ f, s: sort, typ, ...patch }).filter(([, v]) => v) as [string, string][]);
@@ -81,7 +84,7 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
                   href={`/subscriptions/${s.id}`}
                   className="flex items-center gap-3 rounded-card bg-paper p-3 shadow-hairline transition hover:bg-fog/50 active:bg-fog"
                 >
-                  <Avatar name={s.name} color={s.color} />
+                  <Avatar name={s.name} color={s.color} logo={s.logo} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate font-semibold text-obsidian">{s.name}</span>

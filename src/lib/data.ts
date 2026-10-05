@@ -1,15 +1,18 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { cards, priceChanges, subscriptions, type Card, type SubscriptionScope, type Subscription } from "@/db/schema";
+import { cards, logos, priceChanges, subscriptions, type Card, type SubscriptionScope, type Subscription } from "@/db/schema";
 import { chargesBetween, cycleLabel, inTrial, isLive, monthlyFactor, nextCharge } from "./billing";
 import { addDays, addMonths, endOfMonth, startOfMonth, today as todayFn, type ISODate } from "./dates";
 import { getRates, toPLN, type Rates } from "./fx";
 import { dateShort, money } from "./format";
 import { amountOn, type PriceEvent } from "./price";
 
+export type Logo = { src: string; fullBleed: boolean };
+
 export type EnrichedSub = Subscription & {
   card: Card | null;
+  logo: Logo | null;
   /** Full price in force today, original currency */
   amountNum: number;
   /** My share of today's price (amount / splitWith), original currency */
@@ -49,6 +52,7 @@ function enrich(
   rates: Rates,
   today: ISODate,
   priceEvents: (PriceEvent & { id: number })[],
+  fullBleed: boolean | undefined,
 ): EnrichedSub {
   const split = Math.max(1, s.splitWith);
   const myAmountOn = (d: ISODate) => amountOn(Number(s.amount), priceEvents, d) / split;
@@ -60,6 +64,7 @@ function enrich(
   return {
     ...s,
     card: cardList.find((c) => c.id === s.cardId) ?? null,
+    logo: s.logoVersion && fullBleed !== undefined ? { src: `/api/logo/${s.id}?v=${s.logoVersion}`, fullBleed } : null,
     amountNum,
     myAmount,
     priceEvents,
@@ -75,17 +80,19 @@ function enrich(
 
 export async function loadAll() {
   const today = todayFn();
-  const [subs, cardList, rates, changes] = await Promise.all([
+  const [subs, cardList, rates, changes, logoMeta] = await Promise.all([
     db.select().from(subscriptions).orderBy(asc(subscriptions.name)),
     listCards(),
     getRates(),
     db.select().from(priceChanges).orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id)),
+    db.select({ id: logos.subscriptionId, fullBleed: logos.fullBleed }).from(logos),
   ]);
+  const bleed = new Map(logoMeta.map((l) => [l.id, l.fullBleed]));
   const eventsFor = (id: number) =>
     changes
       .filter((c) => c.subscriptionId === id)
       .map((c) => ({ id: c.id, effectiveDate: c.effectiveDate, oldAmount: Number(c.oldAmount), newAmount: Number(c.newAmount) }));
-  return { today, rates, cards: cardList, subs: subs.map((s) => enrich(s, cardList, rates, today, eventsFor(s.id))) };
+  return { today, rates, cards: cardList, subs: subs.map((s) => enrich(s, cardList, rates, today, eventsFor(s.id), bleed.get(s.id))) };
 }
 
 export async function loadOne(id: number) {

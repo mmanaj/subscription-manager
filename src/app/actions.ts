@@ -2,6 +2,7 @@
 
 import { and, asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
@@ -10,6 +11,8 @@ import { endSession, passwordMatches, requireAuth, startSession } from "@/lib/au
 import { nextCharge } from "@/lib/billing";
 import { addDays, today } from "@/lib/dates";
 import { amountOn } from "@/lib/price";
+import { normalizeDomain } from "@/lib/logo-domains";
+import { fetchLogo, refreshLogo, storeLogo } from "@/lib/logos";
 
 export type FormState = { ok?: boolean; error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -73,8 +76,10 @@ export async function saveSubscription(id: number | null, _prev: FormState, form
   const { priceMode, priceFrom, ...fields } = parsed.data;
   const values = { ...fields, splitWith: fields.scope === "shared" ? fields.splitWith : 1, updatedAt: new Date() };
   let savedId = id;
+  let needsLogo = true;
   if (id) {
     const [prev] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    needsLogo = !prev?.logoCheckedAt || prev.name !== values.name || prev.url !== values.url;
     const priceChanged = prev && Number(prev.amount) !== Number(values.amount);
     await db.transaction(async (tx) => {
       if (priceChanged && priceMode === "change") {
@@ -95,8 +100,56 @@ export async function saveSubscription(id: number | null, _prev: FormState, form
     const [row] = await db.insert(subscriptions).values(values).returning({ id: subscriptions.id });
     savedId = row.id;
   }
+  if (needsLogo) await lookUpLogo(savedId!);
   refreshAll();
   redirect(`/subscriptions/${savedId}`);
+}
+
+/**
+ * Looks up the logo (new subscription, or its name/link changed). Waits briefly so the logo is
+ * usually there on the next screen, then lets the lookup finish in the background.
+ */
+async function lookUpLogo(id: number) {
+  const job = refreshLogo(id).catch(() => false);
+  after(() => job);
+  await Promise.race([job, new Promise((r) => setTimeout(r, 4000))]);
+}
+
+export async function setLogoDomain(id: number, raw: string): Promise<{ error?: string }> {
+  await requireAuth();
+  const domain = normalizeDomain(raw);
+  if (!domain) return { error: "Wpisz adres strony, np. skyshowtime.com" };
+  const logo = await fetchLogo(domain);
+  if (!logo) return { error: `Nie znalazłem logo na ${domain}. Spróbuj innego adresu albo wgraj obrazek.` };
+  await storeLogo(id, logo, { domain });
+  refreshAll();
+  return {};
+}
+
+export async function uploadLogo(id: number, dataUrl: string): Promise<{ error?: string }> {
+  await requireAuth();
+  const m = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) return { error: "Nieobsługiwany format obrazka" };
+  const data = Buffer.from(m[2], "base64");
+  if (data.length > 256 * 1024) return { error: "Obrazek jest za duży" };
+  await storeLogo(id, { data, contentType: m[1], fullBleed: true }, { custom: true });
+  refreshAll();
+  return {};
+}
+
+/** mode "monogram": no logo, never auto-fetch. mode "auto": forget overrides and look up again. */
+export async function resetLogo(id: number, mode: "monogram" | "auto"): Promise<{ error?: string }> {
+  await requireAuth();
+  if (mode === "monogram") {
+    await storeLogo(id, null, { custom: true });
+  } else {
+    await db.update(subscriptions).set({ logoCustom: false, logoDomain: null }).where(eq(subscriptions.id, id));
+    const found = await refreshLogo(id);
+    refreshAll();
+    if (!found) return { error: "Nie znalazłem logo automatycznie. Wpisz adres strony albo wgraj obrazek." };
+  }
+  refreshAll();
+  return {};
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
