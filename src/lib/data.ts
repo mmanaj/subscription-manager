@@ -169,14 +169,26 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
   }));
   const next12m = sum(paymentsBetween(subs, today, addDays(addMonths(today, 12), -1)).map((p) => p.pln));
 
-  const group = (key: (s: EnrichedSub) => string) => {
-    const m = new Map<string, number>();
-    for (const s of live) m.set(key(s), (m.get(key(s)) ?? 0) + s.monthlyPLN);
-    return [...m.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+  /** Monthly total per key, biggest first, keeping the subscriptions behind each slice. */
+  const group = <K>(key: (s: EnrichedSub) => K, label: (k: K) => string) => {
+    const m = new Map<K, EnrichedSub[]>();
+    for (const s of live) m.set(key(s), [...(m.get(key(s)) ?? []), s]);
+    return [...m.entries()]
+      .map(([k, items]) => ({ key: k, label: label(k), value: sum(items.map((s) => s.monthlyPLN)), subs: items }))
+      .sort((a, b) => b.value - a.value);
   };
-  const byCategory = group((s) => s.category?.trim() || "Bez kategorii");
-  const byCard = group((s) => (s.card ? s.card.name + (s.card.last4 ? ` ••${s.card.last4}` : "") : "Bez karty"));
-  const byScope = group((s) => SCOPES[s.scope].plural);
+  const byCategory = group(
+    (s) => s.category?.trim() || "Bez kategorii",
+    (k) => k,
+  );
+  const byCard = group(
+    (s) => s.card,
+    (c) => (c ? c.name : "Bez karty"),
+  );
+  const byScope = group(
+    (s) => s.scope,
+    (k) => SCOPES[k].plural,
+  );
 
   const alerts: Alert[] = [];
   for (const s of live) {

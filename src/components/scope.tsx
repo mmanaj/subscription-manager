@@ -5,6 +5,11 @@ import type { SubscriptionScope } from "@/db/schema";
 const ICON = { personal: User, shared: Users, business: Briefcase } as const;
 const LABEL = { personal: "Prywatne", shared: "Wspólne", business: "Firmowe" } as const;
 
+export function ScopeIcon({ scope, size = 16 }: { scope: SubscriptionScope; size?: number }) {
+  const Icon = ICON[scope];
+  return <Icon size={size} strokeWidth={2} />;
+}
+
 /** Small corner badge on a logo: shared = navy people, business = black briefcase, personal = none. */
 export function ScopeBadge({ scope, size = 18 }: { scope: SubscriptionScope; size?: number }) {
   if (scope === "personal") return null;

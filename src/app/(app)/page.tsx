@@ -2,7 +2,7 @@ import Link from "next/link";
 import { after } from "next/server";
 import { backfillLogos } from "@/lib/logos";
 import { AlertTriangle, CalendarClock, CreditCard, Hourglass, TrendingUp } from "lucide-react";
-import { Bars } from "@/components/bars";
+import { CardTiles, CategoryRanking, ScopeSplit } from "@/components/breakdowns";
 import { PaymentCalendar } from "@/components/payment-calendar";
 import { PaymentRow } from "@/components/payment-row";
 import { CountUpMoney } from "@/components/count-up";
@@ -134,12 +134,12 @@ export default async function Dashboard(props: PageProps<"/">) {
           {!scope && st.byScope.length > 1 && (
             <div>
               <SectionTitle>Czyje</SectionTitle>
-              <Bars data={st.byScope} total={st.monthly} />
+              <ScopeSplit data={st.byScope} total={st.monthly} />
             </div>
           )}
           <div>
             <SectionTitle>Na co idzie</SectionTitle>
-            <Bars
+            <CategoryRanking
               data={st.byCategory}
               total={st.monthly}
               href={(c) => `/subscriptions?${new URLSearchParams({ kat: c, ...(scope ? { typ: scope } : {}) })}`}
@@ -147,7 +147,7 @@ export default async function Dashboard(props: PageProps<"/">) {
           </div>
           <div>
             <SectionTitle>Z jakiej karty</SectionTitle>
-            <Bars data={st.byCard} total={st.monthly} />
+            <CardTiles data={st.byCard} total={st.monthly} />
           </div>
           <p className="text-[13px] text-muted">
             Kwoty miesięczne to średnia: płatności roczne dzielone na 12, kwartalne na 3. W walutach obcych przeliczone po
