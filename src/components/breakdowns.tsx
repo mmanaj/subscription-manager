@@ -30,7 +30,7 @@ export function ScopeSplit({ data, total }: { data: Slice<SubscriptionScope>[]; 
           />
         ))}
       </div>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+      <ul className="mt-4 flex flex-col gap-1">
         {data.map((d) => (
           <li key={d.key}>
             <Link href={`/?typ=${d.key}`} className="press -mx-2 flex items-center gap-3 rounded-[var(--radius-field)] px-2 py-1.5 hover:bg-surface-alt">
@@ -43,7 +43,7 @@ export function ScopeSplit({ data, total }: { data: Slice<SubscriptionScope>[]; 
                   {d.subs.length} {plural(d.subs.length, ["subskrypcja", "subskrypcje", "subskrypcji"])}
                 </span>
               </span>
-              <span className="text-right">
+              <span className="shrink-0 whitespace-nowrap text-right">
                 <span className="tabular block font-medium text-ink">{pln(d.value)}</span>
                 <span className="tabular block text-xs text-muted">{pct(d.value, total)}%</span>
               </span>
@@ -79,7 +79,7 @@ export function CategoryRanking({ data, total, href }: { data: Slice<string>[]; 
                   {d.subs.length > 3 ? `${d.subs.slice(0, 2).map((s) => s.name).join(", ")} i ${d.subs.length - 2} więcej` : d.subs.map((s) => s.name).join(", ")}
                 </span>
               </span>
-              <span className="text-right">
+              <span className="shrink-0 whitespace-nowrap text-right">
                 <span className="tabular block font-medium text-ink">{pln(d.value)}</span>
                 <span className="tabular block text-xs text-muted">{pct(d.value, total)}%</span>
               </span>
