@@ -1,40 +1,40 @@
 @import "tailwindcss";
 
 @theme {
-  --color-forest: #163300;
-  --color-lime: #9fe870;
-  --color-spruce: #054d28;
-  --color-mist: #e2f6d5;
-  --color-signal: #0b4c72;
-  --color-alarm: #cb272f;
-  --color-charcoal: #454745;
-  --color-obsidian: #0e0f0c;
-  --color-pebble: #868685;
-  --color-slate: #6a6c6a;
-  --color-fog: #e8ebe6;
+  /* Achromatic system: ink on white cards over a soft gray canvas. Red only for destructive/error. */
+  --color-canvas: #f5f5f5;
   --color-paper: #ffffff;
+  --color-surface-alt: #fafafa;
+  --color-ink: #0a0a0a;
+  --color-ink-soft: #171717;
+  --color-muted: #737373;
+  --color-hairline: #e5e5e5;
+  --color-ember: #e7000b;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  --radius-card: 10px;
-  --radius-large: 28px;
+  --radius-card: 10px; /* nested elements */
+  --radius-field: 18px; /* buttons, inputs, badges */
+  --radius-large: 24px; /* cards */
 
-  --shadow-hairline: rgba(14, 15, 12, 0.12) 0px 0px 0px 1px;
-  --shadow-panel: rgba(0, 0, 0, 0.08) 0px 6px 20px 0px;
+  --shadow-hairline: 0 0 0 1px var(--color-hairline);
+  --shadow-card: 0 0 0 1px rgba(23, 23, 23, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-panel: 0 0 0 1px rgba(23, 23, 23, 0.05), 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
-    font-feature-settings: "calt";
+    font-feature-settings: "ss01", "cv11";
   }
   body {
-    @apply bg-paper text-charcoal antialiased;
-    letter-spacing: -0.006em;
+    @apply bg-canvas text-ink-soft antialiased;
+    font-size: 14px;
+    line-height: 1.43;
   }
   ::selection {
-    background: var(--color-lime);
-    color: var(--color-forest);
+    background: var(--color-ink);
+    color: var(--color-paper);
   }
   input,
   select,
@@ -43,17 +43,34 @@
   }
 }
 
+/* White card on the canvas: 24px radius, hairline edge, whisper of elevation. */
+@utility card {
+  background: var(--color-paper);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-card);
+}
+
 @utility display {
-  font-weight: 900;
-  line-height: 0.85;
-  letter-spacing: -0.04em;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.05em;
+  color: var(--color-ink);
 }
 
 @utility heading {
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--color-obsidian);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--color-ink);
+}
+
+@utility caption {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
 }
 
 @utility tabular {

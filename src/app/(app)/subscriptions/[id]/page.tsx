@@ -30,22 +30,22 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
   const status = s.trial ? (
     <Tag>okres próbny do {dateShort(s.trialEndDate!)}</Tag>
   ) : s.status === "paused" ? (
-    <Tag tone="fog">wstrzymana</Tag>
+    <Tag tone="outline">wstrzymana</Tag>
   ) : s.status === "cancelled" ? (
-    <Tag tone="fog">anulowana{s.endDate ? ` · dostęp do ${dateShort(s.endDate)}` : ""}</Tag>
+    <Tag tone="outline">anulowana{s.endDate ? ` · dostęp do ${dateShort(s.endDate)}` : ""}</Tag>
   ) : s.live ? (
-    <Tag tone="dark">aktywna</Tag>
+    <Tag tone="solid">aktywna</Tag>
   ) : (
-    <Tag tone="fog">zakończona</Tag>
+    <Tag tone="outline">zakończona</Tag>
   );
 
   return (
-    <div className="flex flex-col gap-8">
-      <Link href="/subscriptions" className="text-sm font-semibold text-slate hover:text-forest">
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <Link href="/subscriptions" className="text-sm text-muted hover:text-ink">
         ← Subskrypcje
       </Link>
 
-      <header className="rise flex flex-col gap-4">
+      <header className="rise card flex flex-col gap-5 p-5 sm:p-6">
         <div className="flex items-center gap-4">
           <LogoSheet
             id={s.id}
@@ -56,42 +56,39 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
             overridden={s.logoCustom || !!s.logoDomain}
           />
           <div className="min-w-0">
-            <h1 className="heading truncate text-[40px] sm:text-[61px]">{s.name}</h1>
-            <div className="mt-1 flex flex-wrap gap-2">
+            <h1 className="heading truncate text-2xl sm:text-3xl">{s.name}</h1>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
               {status}
-              {s.scope !== "personal" && <Tag tone="fog">{SCOPES[s.scope].label.toLowerCase()}</Tag>}
-              {s.category && <Tag tone="fog">{s.category}</Tag>}
+              {s.scope !== "personal" && <Tag tone="outline">{SCOPES[s.scope].label.toLowerCase()}</Tag>}
+              {s.category && <Tag tone="outline">{s.category}</Tag>}
             </div>
           </div>
         </div>
         <div>
-          <BigMoney value={s.myAmount} currency={cur} className="text-[64px] text-obsidian sm:text-[89px]" />
-          <p className="mt-2 text-slate">
+          <BigMoney value={s.myAmount} currency={cur} className="text-5xl sm:text-6xl" />
+          <p className="mt-1 text-muted">
             {cycleLabel(s.intervalUnit, s.intervalCount)}
             {s.splitWith > 1 && ` · Twoja część z ${money(s.amountNum, s.currency)} ÷ ${s.splitWith}`}
             {foreign && ` · ≈ ${money(s.chargePLN)}`}
           </p>
         </div>
+        {s.next && (
+          <div className="flex flex-col gap-1 rounded-[var(--radius-field)] bg-surface-alt p-4 shadow-hairline">
+            <span className="caption">Następna płatność</span>
+            <span className="text-xl font-semibold tracking-tight text-ink">{relative(s.next, today)}</span>
+            <span className="text-muted">
+              {dateLong(s.next)}
+              {s.card && ` · ${s.card.name}${s.card.last4 ? ` ••${s.card.last4}` : ""}`}
+            </span>
+            {cardExp && s.next > cardExp && (
+              <span className="mt-1 text-sm text-ember">Karta wygasa przed tą płatnością — zaktualizuj ją w serwisie.</span>
+            )}
+          </div>
+        )}
       </header>
 
-      {s.next && (
-        <section className="rise rounded-large bg-forest p-6 text-paper sm:p-8" style={{ "--i": 1 } as React.CSSProperties}>
-          <p className="text-sm font-semibold text-mist">Następna płatność</p>
-          <p className="display mt-2 text-[44px] text-lime sm:text-[61px]">{relative(s.next, today)}</p>
-          <p className="mt-2 text-mist">
-            {dateLong(s.next)}
-            {s.card && ` · ${s.card.name}${s.card.last4 ? ` ••${s.card.last4}` : ""}`}
-          </p>
-          {cardExp && s.next > cardExp && (
-            <p className="mt-3 rounded-card bg-paper/10 px-3 py-2 text-sm text-lime">
-              Karta wygasa przed tą płatnością — zaktualizuj ją w serwisie.
-            </p>
-          )}
-        </section>
-      )}
-
-      <div className="rise grid gap-8 md:grid-cols-2" style={{ "--i": 2 } as React.CSSProperties}>
-        <dl className="divide-y divide-fog rounded-card shadow-hairline">
+      <div className="rise grid items-start gap-4 sm:gap-6 md:grid-cols-2" style={{ "--i": 2 } as React.CSSProperties}>
+        <dl className="card divide-y divide-hairline overflow-hidden">
           {s.startDate && <Row label="Od">{dateLong(s.startDate)}</Row>}
           <Row label="Do">{s.endDate ? dateLong(s.endDate) : "bezterminowo"}</Row>
           {s.trialEndDate && <Row label="Okres próbny do">{dateLong(s.trialEndDate)}</Row>}
@@ -100,22 +97,22 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
           <Row label="Rocznie">{money(perYear, s.currency)}</Row>
           <Row label="Średnio / mies.">{money(perYear / 12, s.currency)}</Row>
           <Row label="Zapłacono dotąd">
-            {money(paidSoFar, s.currency)} <span className="text-pebble">({past.length}×)</span>
+            {money(paidSoFar, s.currency)} <span className="text-muted">({past.length}×)</span>
           </Row>
           {foreign && <Row label="Kurs NBP">{rates.rates[s.currency]?.toFixed(4) ?? "—"} zł</Row>}
         </dl>
 
         <div className="flex flex-col gap-6">
           {upcoming.length > 0 && (
-            <div>
-              <h2 className="heading mb-3 text-2xl">Kolejne płatności</h2>
-              <ul className="flex flex-col gap-1">
+            <div className="card p-5">
+              <h2 className="heading mb-2 text-lg">Kolejne płatności</h2>
+              <ul className="flex flex-col divide-y divide-hairline">
                 {upcoming.map((d) => (
-                  <li key={d} className="flex justify-between rounded-card bg-fog px-4 py-2.5 text-sm">
-                    <span className="font-semibold text-obsidian">{dateLong(d)}</span>
-                    <span className="tabular text-charcoal">
+                  <li key={d} className="flex justify-between py-2.5">
+                    <span className="text-ink">{dateLong(d)}</span>
+                    <span className="tabular text-ink-soft">
                       {money(s.myAmountOn(d), s.currency)}
-                      {foreign && <span className="text-pebble"> · {money(s.plnOn(d))}</span>}
+                      {foreign && <span className="text-muted"> · {money(s.plnOn(d))}</span>}
                     </span>
                   </li>
                 ))}
@@ -123,13 +120,13 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
             </div>
           )}
           {s.notes && (
-            <div>
-              <h2 className="heading mb-2 text-2xl">Notatki</h2>
-              <p className="whitespace-pre-wrap text-charcoal">{s.notes}</p>
+            <div className="card p-5">
+              <h2 className="heading mb-2 text-lg">Notatki</h2>
+              <p className="whitespace-pre-wrap text-ink-soft">{s.notes}</p>
             </div>
           )}
           {s.url && (
-            <a href={s.url} target="_blank" rel="noreferrer" className={btn.link}>
+            <a href={s.url} target="_blank" rel="noreferrer" className={`${btn.outline} self-start`}>
               Zarządzaj w serwisie <ExternalLink size={16} />
             </a>
           )}
@@ -147,7 +144,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Link href={`/subscriptions/${s.id}/edit`} className={btn.primary}>
-          <Pencil size={18} /> Edytuj
+          <Pencil size={16} /> Edytuj
         </Link>
         {s.status === "active" && (
           <>
@@ -158,7 +155,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
             >
               Anuluj subskrypcję
             </ConfirmButton>
-            <ConfirmButton action={setStatus.bind(null, s.id, "paused")} className={btn.outline}>
+            <ConfirmButton action={setStatus.bind(null, s.id, "paused")} className={btn.secondary}>
               Wstrzymaj
             </ConfirmButton>
           </>
@@ -171,7 +168,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
         <ConfirmButton
           action={deleteSubscription.bind(null, s.id)}
           confirm={`Usunąć „${s.name}” na zawsze?`}
-          className="py-3 text-sm font-semibold text-alarm underline underline-offset-4 sm:ml-auto"
+          className={`${btn.danger} sm:ml-auto`}
         >
           Usuń
         </ConfirmButton>
@@ -183,8 +180,8 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 px-4 py-3">
-      <dt className="text-sm text-slate">{label}</dt>
-      <dd className="tabular text-right font-semibold text-obsidian">{children}</dd>
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="tabular text-right font-medium text-ink">{children}</dd>
     </div>
   );
 }

@@ -13,7 +13,7 @@ export function ScopeBadge({ scope, size = 18 }: { scope: SubscriptionScope; siz
     <span
       title={scope === "shared" ? "Wspólna" : "Firmowa"}
       className={`absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full ring-2 ring-paper ${
-        scope === "shared" ? "bg-signal text-paper" : "bg-obsidian text-lime"
+        scope === "shared" ? "bg-paper text-ink shadow-hairline" : "bg-ink text-paper"
       }`}
       style={{ width: size, height: size }}
     >
@@ -39,7 +39,7 @@ export function ScopeTabs({
     ...scopes.map((s) => ({ key: s, label: LABEL[s] })),
   ];
   return (
-    <nav aria-label="Typ" className="grid rounded-full bg-fog p-1" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+    <nav aria-label="Typ" className="grid w-full rounded-full bg-hairline/60 p-1 sm:max-w-md" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((i) => {
         const on = i.key === active;
         const Icon = i.key ? ICON[i.key] : null;
@@ -48,12 +48,12 @@ export function ScopeTabs({
             key={i.label}
             href={href(i.key)}
             aria-current={on ? "page" : undefined}
-            className={`flex min-w-0 items-center justify-center gap-1.5 rounded-full px-1 py-2 text-[13px] font-semibold transition sm:text-sm ${
-              on ? "bg-forest text-paper" : "text-charcoal hover:text-forest"
+            className={`flex min-w-0 items-center justify-center gap-1.5 rounded-full px-1 py-1.5 text-[13px] font-medium transition sm:text-sm ${
+              on ? "bg-paper text-ink shadow-card" : "text-muted hover:text-ink"
             }`}
           >
             {/* Icons only where there's room; narrow phones get clean full words instead of truncated ones. */}
-            {Icon && <Icon size={15} strokeWidth={2.25} className={`hidden shrink-0 min-[420px]:block ${on ? "text-lime" : ""}`} />}
+            {Icon && <Icon size={15} strokeWidth={1.75} className="hidden shrink-0 min-[420px]:block" />}
             <span className="truncate">{i.label}</span>
           </Link>
         );

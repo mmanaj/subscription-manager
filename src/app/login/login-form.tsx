@@ -2,12 +2,12 @@
 
 import { useActionState } from "react";
 import { login } from "@/app/actions";
-import { Submit } from "@/components/form-bits";
+import { inputCls, Submit } from "@/components/form-bits";
 
 export function LoginForm() {
   const [state, action] = useActionState(login, undefined);
   return (
-    <form action={action} className="mt-10 flex flex-col gap-4">
+    <form action={action} className="mt-6 flex flex-col gap-3">
       <input
         name="password"
         type="password"
@@ -16,10 +16,13 @@ export function LoginForm() {
         autoComplete="current-password"
         placeholder="Hasło"
         aria-label="Hasło"
-        className="w-full rounded-card border border-mist/40 bg-transparent px-4 py-3.5 text-paper outline-none placeholder:text-mist/60 focus:border-lime"
+        aria-invalid={!!state?.error}
+        className={inputCls}
       />
-      {state?.error && <p className="text-sm font-semibold text-lime">{state.error}</p>}
-      <Submit>Wejdź</Submit>
+      {state?.error && <p className="text-sm text-ember">{state.error}</p>}
+      <div className="[&>button]:w-full">
+        <Submit>Wejdź</Submit>
+      </div>
     </form>
   );
 }

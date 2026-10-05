@@ -39,13 +39,13 @@ export default async function CardsPage() {
                   <CardVisual card={c} />
                 </Link>
                 <div className="flex items-center justify-between gap-2 px-1">
-                  <span className="text-sm text-slate">
+                  <span className="text-sm text-muted">
                     {on.length} {plural(on.length, ["subskrypcja", "subskrypcje", "subskrypcji"])} ·{" "}
-                    <span className="tabular font-semibold text-obsidian">{money(sum(on.map((s) => s.monthlyPLN)))}</span>/mies.
+                    <span className="tabular font-medium text-ink">{money(sum(on.map((s) => s.monthlyPLN)))}</span>/mies.
                   </span>
-                  {expired ? <Tag tone="alarm">wygasła</Tag> : soon ? <Tag tone="alarm">wygasa</Tag> : null}
+                  {expired ? <Tag tone="danger">wygasła</Tag> : soon ? <Tag tone="danger">wygasa</Tag> : null}
                 </div>
-                {on.length > 0 && <p className="px-1 text-sm text-pebble">{on.map((s) => s.name).join(", ")}</p>}
+                {on.length > 0 && <p className="px-1 text-sm text-muted">{on.map((s) => s.name).join(", ")}</p>}
               </li>
             );
           })}

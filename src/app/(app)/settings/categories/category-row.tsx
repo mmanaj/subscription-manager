@@ -29,8 +29,8 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
 
   return (
     <li className={`flex items-center gap-2 py-1 pl-4 pr-1 ${pending ? "opacity-50" : ""}`}>
-      <span className="min-w-0 flex-1 truncate font-semibold text-obsidian">{name}</span>
-      <span className="shrink-0 text-sm text-pebble">{count || "—"}</span>
+      <span className="min-w-0 flex-1 truncate font-medium text-ink">{name}</span>
+      <span className="shrink-0 text-sm text-muted">{count || "—"}</span>
       <button
         type="button"
         aria-label={`Zmień nazwę: ${name}`}
@@ -39,22 +39,22 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
           setError(undefined);
           dialog.current?.showModal();
         }}
-        className="rounded-full p-3 text-forest hover:bg-mist"
+        className="rounded-full p-3 text-muted transition hover:bg-canvas hover:text-ink"
       >
-        <Pencil size={18} />
+        <Pencil size={16} />
       </button>
-      <button type="button" aria-label={`Usuń: ${name}`} onClick={remove} className="rounded-full p-3 text-alarm hover:bg-alarm/10">
-        <Trash2 size={18} />
+      <button type="button" aria-label={`Usuń: ${name}`} onClick={remove} className="rounded-full p-3 text-muted transition hover:bg-ember/10 hover:text-ember">
+        <Trash2 size={16} />
       </button>
 
       <dialog
         ref={dialog}
-        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
+        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-ink-soft sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-[28px]">Zmień nazwę</h2>
-          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-fog">
+          <h2 className="heading text-xl">Zmień nazwę</h2>
+          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
             <X size={22} />
           </button>
         </div>
@@ -65,16 +65,16 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
           }}
         >
           <input autoFocus value={draft} maxLength={40} onChange={(e) => setDraft(e.target.value)} className={inputCls} aria-invalid={!!error} />
-          {error && <p className="mt-2 text-sm text-alarm">{error}</p>}
+          {error && <p className="mt-2 text-sm text-ember">{error}</p>}
           {count > 0 && (
-            <p className="mt-2 text-sm text-slate">
+            <p className="mt-2 text-sm text-muted">
               Zmieni się też w {count} {plural(count, ["subskrypcji", "subskrypcjach", "subskrypcjach"])}.
             </p>
           )}
           <button
             type="submit"
             disabled={!draft.trim() || pending}
-            className="mt-5 w-full rounded-full bg-lime px-6 py-3.5 font-semibold text-forest transition hover:brightness-95 disabled:opacity-50"
+            className="mt-5 w-full rounded-full bg-ink px-6 py-3.5 font-medium text-paper transition hover:bg-ink-soft disabled:opacity-50"
           >
             {pending ? "Zapisuję…" : "Zapisz"}
           </button>

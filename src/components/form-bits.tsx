@@ -4,7 +4,7 @@ import { useFormStatus } from "react-dom";
 import { SWATCHES } from "@/lib/colors";
 
 export const inputCls =
-  "w-full rounded-card border border-pebble bg-paper px-4 py-3 text-obsidian outline-none transition placeholder:text-pebble focus:border-forest focus:ring-0 aria-[invalid=true]:border-alarm";
+  "w-full rounded-[var(--radius-field)] border border-transparent bg-canvas px-3.5 py-2.5 text-ink outline-none transition placeholder:text-muted focus:border-hairline focus:bg-paper focus:ring-2 focus:ring-ink/10 aria-[invalid=true]:border-ember/60";
 
 export function Field({
   label,
@@ -21,9 +21,9 @@ export function Field({
 }) {
   return (
     <label className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="text-sm font-semibold text-obsidian">{label}</span>
+      <span className="text-sm font-medium text-ink">{label}</span>
       {children}
-      {error ? <span className="text-sm text-alarm">{error}</span> : hint ? <span className="text-xs text-slate">{hint}</span> : null}
+      {error ? <span className="text-sm text-ember">{error}</span> : hint ? <span className="text-xs text-muted">{hint}</span> : null}
     </label>
   );
 }
@@ -35,7 +35,7 @@ export function Submit({ children, pending: pendingProp }: { children: React.Rea
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex w-full items-center justify-center rounded-full bg-lime px-6 py-3.5 text-base font-semibold text-forest transition hover:brightness-95 active:scale-[0.98] disabled:opacity-60 sm:w-auto"
+      className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-6 text-sm font-medium text-paper transition hover:bg-ink-soft disabled:opacity-60 sm:w-auto"
     >
       {pending ? "Zapisuję…" : children}
     </button>
@@ -56,7 +56,7 @@ export function ColorPicker({ name, value, onChange }: { name: string; value: st
             className="peer sr-only"
           />
           <span
-            className="block h-9 w-9 rounded-full ring-1 ring-black/10 ring-offset-2 transition peer-checked:ring-2 peer-checked:ring-forest peer-focus-visible:ring-2 peer-focus-visible:ring-forest"
+            className="block h-8 w-8 rounded-full ring-1 ring-hairline ring-offset-2 transition peer-checked:ring-2 peer-checked:ring-ink peer-focus-visible:ring-2 peer-focus-visible:ring-ink"
             style={{ background: s.bg }}
           />
         </label>

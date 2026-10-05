@@ -18,18 +18,18 @@ function isActive(path: string, href: string) {
 export function TopNav() {
   const path = usePathname();
   return (
-    <header className="sticky top-0 z-30 border-b border-fog bg-paper/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-8">
-        <Link href="/" className="text-[26px] font-black tracking-[-0.06em] text-forest">
-          subs<span className="text-lime [-webkit-text-stroke:1px_#163300]">.</span>
+    <header className="sticky top-0 z-30 border-b border-hairline bg-surface-alt/85 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between px-4 sm:px-8">
+        <Link href="/" className="text-xl font-medium tracking-[-0.05em] text-ink">
+          subs<span className="text-muted">.</span>
         </Link>
-        <nav className="hidden items-center rounded-full bg-fog p-1 md:flex">
+        <nav className="hidden items-center rounded-full bg-hairline/60 p-1 md:flex">
           {items.map((i) => (
             <Link
               key={i.href}
               href={i.href}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                isActive(path, i.href) ? "bg-forest text-paper" : "text-forest hover:bg-mist"
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                isActive(path, i.href) ? "bg-paper text-ink shadow-card" : "text-muted hover:text-ink"
               }`}
             >
               {i.label}
@@ -38,7 +38,7 @@ export function TopNav() {
         </nav>
         <Link
           href="/subscriptions/new"
-          className="hidden items-center gap-1.5 rounded-full bg-lime px-5 py-2.5 text-sm font-semibold text-forest transition hover:brightness-95 md:inline-flex"
+          className="hidden h-9 items-center gap-1.5 rounded-full bg-ink px-4 text-sm font-medium text-paper transition hover:bg-ink-soft md:inline-flex"
         >
           <Plus size={18} strokeWidth={2.5} /> Dodaj
         </Link>
@@ -57,17 +57,17 @@ export function BottomNav() {
       <Link
         key={i.href}
         href={i.href}
-        className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${active ? "text-forest" : "text-pebble"}`}
+        className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${active ? "text-ink" : "text-muted"}`}
       >
-        <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${active ? "bg-mist" : ""}`}>
-          <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+        <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${active ? "bg-hairline/70" : ""}`}>
+          <Icon size={20} strokeWidth={active ? 2 : 1.75} />
         </span>
         {i.label}
       </Link>
     );
   };
   return (
-    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-fog bg-paper/95 backdrop-blur md:hidden">
+    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-surface-alt/90 backdrop-blur md:hidden">
       <div className="flex items-end px-2">
         {tab(a)}
         {tab(b)}
@@ -75,9 +75,9 @@ export function BottomNav() {
           <Link
             href="/subscriptions/new"
             aria-label="Dodaj subskrypcję"
-            className="-mt-5 mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-lime text-forest shadow-panel ring-4 ring-paper transition active:scale-95"
+            className="-mt-5 mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-ink text-paper shadow-panel ring-4 ring-surface-alt transition active:scale-95"
           >
-            <Plus size={28} strokeWidth={2.75} />
+            <Plus size={24} strokeWidth={2} />
           </Link>
         </div>
         {tab(c)}

@@ -52,7 +52,7 @@ export function SubscriptionForm({
   const custom = !PRESETS.some(presetActive);
 
   return (
-    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-2xl flex-col gap-6">
+    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="card flex max-w-2xl flex-col gap-6 p-5 sm:p-6">
       <div className="flex items-center gap-4">
         <Avatar name={name || "?"} color={color} size={56} />
         <Field label="Nazwa" error={e.name} className="flex-1">
@@ -79,7 +79,7 @@ export function SubscriptionForm({
             value={amount}
             onChange={(ev) => setAmount(ev.target.value)}
             aria-invalid={!!e.amount}
-            className={`${inputCls} tabular text-lg font-semibold`}
+            className={`${inputCls} tabular text-lg font-medium`}
           />
         </Field>
         <Field label="Waluta">
@@ -92,7 +92,7 @@ export function SubscriptionForm({
       </div>
 
       {priceChanged && (
-        <div className="-mt-3 flex flex-col gap-3 rounded-card bg-mist p-4">
+        <div className="-mt-3 flex flex-col gap-3 rounded-card bg-canvas p-4">
           <input type="hidden" name="priceMode" value={priceMode} />
           <div className="flex flex-wrap gap-2">
             {(
@@ -105,8 +105,8 @@ export function SubscriptionForm({
                 key={v}
                 type="button"
                 onClick={() => setPriceMode(v)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  priceMode === v ? "bg-forest text-paper" : "bg-paper text-forest"
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  priceMode === v ? "bg-ink text-paper" : "bg-paper text-ink"
                 }`}
               >
                 {label}
@@ -118,13 +118,13 @@ export function SubscriptionForm({
               <input name="priceFrom" type="date" defaultValue={new Intl.DateTimeFormat("en-CA").format(new Date())} className={inputCls} />
             </Field>
           ) : (
-            <p className="text-sm text-forest">Kwota zostanie nadpisana bez wpisu w historii cen.</p>
+            <p className="text-sm text-ink">Kwota zostanie nadpisana bez wpisu w historii cen.</p>
           )}
         </div>
       )}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-sm font-semibold text-obsidian">Czyja</legend>
+        <legend className="mb-1.5 text-sm font-medium text-ink">Czyja</legend>
         <input type="hidden" name="scope" value={scope} />
         <div className="grid grid-cols-3 gap-2">
           {SCOPE_OPTIONS.map((o) => (
@@ -134,10 +134,10 @@ export function SubscriptionForm({
               aria-pressed={scope === o.value}
               onClick={() => setScope(o.value)}
               className={`flex flex-col items-start rounded-card px-3 py-2.5 text-left transition ${
-                scope === o.value ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"
+                scope === o.value ? "bg-ink text-paper" : "bg-canvas text-ink-soft hover:bg-canvas"
               }`}
             >
-              <span className="text-sm font-semibold">{o.label}</span>
+              <span className="text-sm font-medium">{o.label}</span>
               <span className="text-[11px] leading-tight opacity-75">{o.hint}</span>
             </button>
           ))}
@@ -152,7 +152,7 @@ export function SubscriptionForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-sm font-semibold text-obsidian">Odnawia się</legend>
+        <legend className="mb-1.5 text-sm font-medium text-ink">Odnawia się</legend>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button
@@ -162,8 +162,8 @@ export function SubscriptionForm({
                 setCount(p.count);
                 setUnit(p.unit);
               }}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                presetActive(p) ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                presetActive(p) ? "bg-ink text-paper" : "bg-canvas text-ink-soft hover:bg-canvas"
               }`}
             >
               {p.label}
@@ -171,7 +171,7 @@ export function SubscriptionForm({
           ))}
         </div>
         <div className="mt-1 flex items-center gap-2">
-          <span className={`text-sm ${custom ? "font-semibold text-forest" : "text-slate"}`}>co</span>
+          <span className={`text-sm ${custom ? "font-medium text-ink" : "text-muted"}`}>co</span>
           <input
             name="intervalCount"
             type="number"
@@ -189,7 +189,7 @@ export function SubscriptionForm({
             <option value="year">lat</option>
           </select>
         </div>
-        {e.intervalCount && <span className="text-sm text-alarm">{e.intervalCount}</span>}
+        {e.intervalCount && <span className="text-sm text-ember">{e.intervalCount}</span>}
       </fieldset>
 
       <div className="grid grid-cols-2 gap-3">
@@ -200,7 +200,7 @@ export function SubscriptionForm({
           <input name="startDate" type="date" defaultValue={sub?.startDate ?? ""} className={inputCls} />
         </Field>
       </div>
-      <p className="-mt-3 text-xs text-slate">
+      <p className="-mt-3 text-xs text-muted">
         Wystarczy jedna z dat. Kolejne płatności liczę od dnia płatności; data startu dolicza historię wstecz.
       </p>
 
@@ -226,7 +226,7 @@ export function SubscriptionForm({
         </select>
       </Field>
 
-      <button type="button" onClick={() => setMore((m) => !m)} className="self-start text-sm font-semibold text-forest underline decoration-2 underline-offset-4 hover:decoration-lime">
+      <button type="button" onClick={() => setMore((m) => !m)} className="self-start text-sm font-medium text-ink underline decoration-2 underline-offset-4 hover:decoration-ink/30">
         {more ? "Mniej opcji" : "Więcej opcji: koniec, okres próbny, link, notatki…"}
       </button>
 
@@ -246,12 +246,12 @@ export function SubscriptionForm({
           <textarea name="notes" rows={3} defaultValue={sub?.notes ?? ""} className={inputCls} />
         </Field>
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-obsidian">Kolor</span>
+          <span className="text-sm font-medium text-ink">Kolor</span>
           <ColorPicker name="color" value={color} onChange={setColor} />
         </div>
       </div>
 
-      {state?.error && <p className="rounded-card bg-alarm/10 px-4 py-3 text-sm font-semibold text-alarm">{state.error}</p>}
+      {state?.error && <p className="rounded-card bg-ember/10 px-4 py-3 text-sm font-medium text-ember">{state.error}</p>}
       <div>
         <Submit pending={pending}>{sub ? "Zapisz zmiany" : "Dodaj subskrypcję"}</Submit>
       </div>

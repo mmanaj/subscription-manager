@@ -1,13 +1,13 @@
-// Avatar / card swatches drawn from the Wise-style palette. Text color picked for contrast.
+// Avatar / card swatches: a neutral gray ramp (keys kept for stored values). Light ones get a hairline.
 export const SWATCHES = {
-  forest: { bg: "#163300", fg: "#9fe870", label: "Leśny" },
-  lime: { bg: "#9fe870", fg: "#163300", label: "Limonka" },
-  spruce: { bg: "#054d28", fg: "#ffffff", label: "Świerk" },
-  mist: { bg: "#e2f6d5", fg: "#163300", label: "Mięta" },
-  blue: { bg: "#0b4c72", fg: "#ffffff", label: "Granat" },
-  red: { bg: "#cb272f", fg: "#ffffff", label: "Czerwony" },
-  obsidian: { bg: "#0e0f0c", fg: "#ffffff", label: "Czarny" },
-  fog: { bg: "#e8ebe6", fg: "#0e0f0c", label: "Mgła" },
+  forest: { bg: "#0a0a0a", fg: "#ffffff", label: "Czarny", ring: false },
+  obsidian: { bg: "#262626", fg: "#ffffff", label: "Grafit", ring: false },
+  spruce: { bg: "#404040", fg: "#ffffff", label: "Ciemnoszary", ring: false },
+  red: { bg: "#737373", fg: "#ffffff", label: "Szary", ring: false },
+  blue: { bg: "#a3a3a3", fg: "#ffffff", label: "Popiel", ring: false },
+  lime: { bg: "#e5e5e5", fg: "#0a0a0a", label: "Jasnoszary", ring: false },
+  mist: { bg: "#f5f5f5", fg: "#0a0a0a", label: "Mgła", ring: true },
+  fog: { bg: "#ffffff", fg: "#0a0a0a", label: "Biały", ring: true },
 } as const;
 
 export type Swatch = keyof typeof SWATCHES;

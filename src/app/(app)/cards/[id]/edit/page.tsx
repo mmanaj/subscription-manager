@@ -19,7 +19,7 @@ export default async function EditCard(props: PageProps<"/cards/[id]/edit">) {
       <ConfirmButton
         action={deleteCard.bind(null, id)}
         confirm="Usunąć kartę? Subskrypcje zostaną, tylko bez przypisanej karty."
-        className="mt-8 text-sm font-semibold text-alarm underline underline-offset-4"
+        className="mt-8 text-sm font-medium text-ember underline underline-offset-4"
       >
         Usuń kartę
       </ConfirmButton>

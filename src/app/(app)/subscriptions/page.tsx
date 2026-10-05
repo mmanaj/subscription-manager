@@ -67,7 +67,7 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
           >
             <Link
               href={qs({ kat: undefined })}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition ${!kat ? "bg-lime text-forest" : "bg-paper text-charcoal shadow-hairline hover:bg-mist"}`}
+              className={`shrink-0 rounded-full px-3 py-1 font-medium transition ${!kat ? "bg-ink text-paper" : "bg-paper text-ink-soft shadow-hairline hover:bg-surface-alt"}`}
             >
               Wszystkie kategorie
             </Link>
@@ -76,8 +76,8 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
                 key={c}
                 aria-current={c === kat ? "page" : undefined}
                 href={qs({ kat: c === kat ? undefined : c })}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition ${
-                  c === kat ? "bg-lime text-forest" : "bg-paper text-charcoal shadow-hairline hover:bg-mist"
+                className={`shrink-0 rounded-full px-3 py-1 font-medium transition ${
+                  c === kat ? "bg-ink text-paper" : "bg-paper text-ink-soft shadow-hairline hover:bg-surface-alt"
                 }`}
               >
                 {c}
@@ -90,30 +90,30 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
         {/* Status + sort live behind one toggle: rarely changed, so they shouldn't cost a row each. */}
         <details className="group" open={filtersChanged || undefined}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-sm [&::-webkit-details-marker]:hidden">
-            <span className="text-slate">
+            <span className="text-muted">
               {list.length} {plural(list.length, ["subskrypcja", "subskrypcje", "subskrypcji"])}
               {f !== "inactive" && list.length > 0 && (
                 <>
                   {" "}
-                  · <span className="tabular font-semibold text-obsidian">{money(monthly)}</span>/mies.
+                  · <span className="tabular font-medium text-ink">{money(monthly)}</span>/mies.
                 </>
               )}
             </span>
-            <span className="relative inline-flex items-center gap-1 rounded-full px-3 py-1.5 font-semibold text-forest transition hover:bg-mist">
-              {filtersChanged && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-lime ring-2 ring-paper" />}
+            <span className="relative inline-flex h-8 items-center gap-1 rounded-full bg-paper px-3 font-medium text-ink shadow-hairline transition hover:bg-surface-alt">
+              {filtersChanged && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-ink ring-2 ring-paper" />}
               Filtry
               <ChevronDown size={16} className="transition-transform duration-200 group-open:rotate-180" />
             </span>
           </summary>
-          <div className="mt-2 flex flex-col gap-3 rounded-card bg-fog p-3">
+          <div className="card mt-2 flex flex-col gap-3 p-4">
             <div className="flex flex-col gap-1.5 text-sm">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate">Pokaż</span>
+              <span className="caption">Pokaż</span>
               <div className="flex flex-wrap gap-2">
               {Object.entries(filters).map(([key, v]) => (
                 <Link
                   key={key}
                   href={qs({ f: key === "active" ? undefined : key })}
-                  className={`rounded-full px-3 py-1 font-semibold ${key === f ? "bg-forest text-paper" : "bg-paper text-forest"}`}
+                  className={`rounded-full px-3 py-1 font-medium ${key === f ? "bg-ink text-paper" : "bg-canvas text-ink hover:bg-hairline"}`}
                 >
                   {v.label}
                 </Link>
@@ -121,13 +121,13 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
               </div>
             </div>
             <div className="flex flex-col gap-1.5 text-sm">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate">Sortuj</span>
+              <span className="caption">Sortuj</span>
               <div className="flex flex-wrap gap-2">
               {Object.entries(sorts).map(([key, v]) => (
                 <Link
                   key={key}
                   href={qs({ s: key === "next" ? undefined : key })}
-                  className={`rounded-full px-3 py-1 font-semibold ${key === sort ? "bg-forest text-paper" : "bg-paper text-forest"}`}
+                  className={`rounded-full px-3 py-1 font-medium ${key === sort ? "bg-ink text-paper" : "bg-canvas text-ink hover:bg-hairline"}`}
                 >
                   {v.label}
                 </Link>
@@ -147,33 +147,33 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
         </Empty>
       ) : (
         <>
-          <ul className="grid gap-2 md:grid-cols-2">
+          <ul className="card divide-y divide-hairline overflow-hidden">
             {list.map((s, i) => (
               <li key={s.id} className="rise" style={{ "--i": i } as React.CSSProperties}>
                 <Link
                   href={`/subscriptions/${s.id}`}
-                  className="press flex items-center gap-3 rounded-card bg-paper p-3 shadow-hairline hover:bg-fog/50 active:bg-fog"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-alt active:bg-canvas"
                 >
                   <span className="relative shrink-0">
                     <Avatar name={s.name} color={s.color} logo={s.logo} />
                     <ScopeBadge scope={s.scope} />
                   </span>
                   <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3">
-                    <span className="truncate font-semibold text-obsidian">{s.name}</span>
-                    <span className="tabular whitespace-nowrap text-right font-semibold text-obsidian">
+                    <span className="truncate font-medium text-ink">{s.name}</span>
+                    <span className="tabular whitespace-nowrap text-right font-medium text-ink">
                       {money(s.myAmount, s.currency)}
                     </span>
-                    <span className="flex min-w-0 items-center gap-1.5 text-sm text-slate">
-                      {s.trial && <Tag>próbny</Tag>}
-                      {s.status === "paused" && <Tag tone="fog">wstrzymana</Tag>}
-                      {s.status === "cancelled" && <Tag tone="alarm">anulowana</Tag>}
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted">
+                      {s.trial && <Tag tone="solid">próbny</Tag>}
+                      {s.status === "paused" && <Tag>wstrzymana</Tag>}
+                      {s.status === "cancelled" && <Tag tone="outline">anulowana</Tag>}
                       <span className="truncate">
                         {cycleLabel(s.intervalUnit, s.intervalCount)}
                         {s.splitWith > 1 && ` · ÷${s.splitWith}`}
                         {s.card && ` · ${s.card.last4 ? `••${s.card.last4}` : s.card.name}`}
                       </span>
                     </span>
-                    <span className="whitespace-nowrap text-right text-xs text-pebble">
+                    <span className="whitespace-nowrap text-right text-xs text-muted">
                       {s.next ? relative(s.next, today) : s.endDate ? `do ${dateShort(s.endDate)}` : "—"}
                     </span>
                   </div>

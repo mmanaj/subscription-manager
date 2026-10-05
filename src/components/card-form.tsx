@@ -37,10 +37,10 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
   }
 
   return (
-    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-xl flex-col gap-6">
+    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="card flex max-w-xl flex-col gap-6 p-5 sm:p-6">
       <CardVisual card={{ name, brand, last4, expMonth: exp?.month ?? null, expYear: exp?.year ?? null, color }} />
 
-      <p className="flex items-start gap-2 rounded-card bg-mist px-4 py-3 text-sm text-forest">
+      <p className="flex items-start gap-2 rounded-card bg-canvas px-4 py-3 text-sm text-ink">
         <ShieldCheck size={18} className="mt-0.5 shrink-0" />
         Wystarczą 4 ostatnie cyfry i data ważności. Pełnego numeru ani CVV nie podawaj — aplikacja ich nie potrzebuje i nie
         zapisuje.
@@ -59,7 +59,7 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
       </Field>
 
       <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1.5 text-sm font-semibold text-obsidian">Typ</legend>
+        <legend className="mb-1.5 text-sm font-medium text-ink">Typ</legend>
         <input type="hidden" name="brand" value={brand} />
         <div className="flex flex-wrap gap-2">
           {BRANDS.map((b) => (
@@ -68,8 +68,8 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
               type="button"
               aria-pressed={brand === b}
               onClick={() => setBrand(brand === b ? "" : b)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                brand === b ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                brand === b ? "bg-ink text-paper" : "bg-canvas text-ink-soft hover:bg-canvas"
               }`}
             >
               {b}
@@ -106,17 +106,17 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
         </Field>
       </div>
       {trimmedNotice && (
-        <p className="-mt-3 text-sm text-spruce">
+        <p className="-mt-3 text-sm text-muted">
           Wygląda na pełny numer — zostawiłem tylko 4 ostatnie cyfry{brand ? ` i rozpoznałem: ${brand}` : ""}. Reszta nigdzie nie
           trafiła.
         </p>
       )}
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-obsidian">Kolor</span>
+        <span className="text-sm font-medium text-ink">Kolor</span>
         <ColorPicker name="color" value={color} onChange={setColor} />
       </div>
-      {state?.error && <p className="rounded-card bg-alarm/10 px-4 py-3 text-sm font-semibold text-alarm">{state.error}</p>}
+      {state?.error && <p className="rounded-card bg-ember/10 px-4 py-3 text-sm font-medium text-ember">{state.error}</p>}
       <Submit pending={pending}>{card ? "Zapisz kartę" : "Dodaj kartę"}</Submit>
     </form>
   );

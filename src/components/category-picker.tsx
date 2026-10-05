@@ -37,7 +37,7 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
 
   return (
     <fieldset className="flex flex-col gap-1.5">
-      <legend className="mb-1.5 text-sm font-semibold text-obsidian">Kategoria</legend>
+      <legend className="mb-1.5 text-sm font-medium text-ink">Kategoria</legend>
       <input type="hidden" name={name} value={value} />
       <div className="flex flex-wrap gap-2">
         {list.map((c) => (
@@ -46,8 +46,8 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
             type="button"
             aria-pressed={value === c}
             onClick={() => setValue(value === c ? "" : c)}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              value === c ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              value === c ? "bg-ink text-paper" : "bg-canvas text-ink-soft hover:bg-canvas"
             }`}
           >
             {c}
@@ -56,7 +56,7 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
         <button
           type="button"
           onClick={open}
-          className="inline-flex items-center gap-1 rounded-full border border-forest px-4 py-2 text-sm font-semibold text-forest transition hover:bg-mist"
+          className="inline-flex items-center gap-1 rounded-full border border-ink px-4 py-2 text-sm font-medium text-ink transition hover:bg-canvas"
         >
           <Plus size={16} strokeWidth={2.5} /> Nowa
         </button>
@@ -65,12 +65,12 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
       {/* Bottom sheet on mobile, centered card on desktop. Not a <form>: it lives inside the subscription form. */}
       <dialog
         ref={dialog}
-        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
+        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-ink-soft sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-[28px]">Nowa kategoria</h2>
-          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-fog">
+          <h2 className="heading text-xl">Nowa kategoria</h2>
+          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
             <X size={22} />
           </button>
         </div>
@@ -89,12 +89,12 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
           className={inputCls}
           aria-invalid={!!error}
         />
-        {error && <p className="mt-2 text-sm text-alarm">{error}</p>}
+        {error && <p className="mt-2 text-sm text-ember">{error}</p>}
         <button
           type="button"
           disabled={!draft.trim() || pending}
           onClick={save}
-          className="mt-5 w-full rounded-full bg-lime px-6 py-3.5 font-semibold text-forest transition hover:brightness-95 disabled:opacity-50"
+          className="mt-5 w-full rounded-full bg-ink px-6 py-3.5 font-medium text-paper transition hover:bg-ink-soft disabled:opacity-50"
         >
           {pending ? "Dodaję…" : "Dodaj i wybierz"}
         </button>

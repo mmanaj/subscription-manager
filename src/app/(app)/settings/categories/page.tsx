@@ -10,10 +10,10 @@ export default async function CategoriesPage() {
   return (
     <div className="max-w-2xl">
       <PageHeader title="Kategorie" back="/settings" />
-      <p className="mb-6 text-sm text-slate">
+      <p className="mb-6 text-sm text-muted">
         Nowe dodajesz przy subskrypcji przyciskiem „+ Nowa”. Zmiana nazwy na już istniejącą połączy obie kategorie.
       </p>
-      <ul className="divide-y divide-fog rounded-card shadow-hairline">
+      <ul className="card divide-y divide-hairline overflow-hidden">
         {names.map((n) => (
           <CategoryRow key={n} name={n} count={usage.get(n) ?? 0} />
         ))}

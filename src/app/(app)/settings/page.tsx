@@ -16,20 +16,20 @@ export default async function SettingsPage() {
   const icsUrl = token ? `${proto}://${host}/api/calendar/${token}` : null;
 
   return (
-    <div className="flex max-w-2xl flex-col gap-10">
+    <div className="flex max-w-2xl flex-col gap-4">
       <PageHeader title="Więcej" />
 
-      <Link href="/settings/categories" className="flex items-center justify-between rounded-card bg-fog px-4 py-4 transition hover:bg-mist">
+      <Link href="/settings/categories" className="card flex items-center justify-between px-5 py-4 transition hover:bg-surface-alt">
         <span>
-          <span className="block font-semibold text-obsidian">Kategorie</span>
-          <span className="block text-sm text-slate">Zmień nazwę lub usuń</span>
+          <span className="block font-medium text-ink">Kategorie</span>
+          <span className="block text-sm text-muted">Zmień nazwę lub usuń</span>
         </span>
-        <ChevronRight className="text-forest" />
+        <ChevronRight className="text-ink" />
       </Link>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="heading text-2xl">Przypomnienia w kalendarzu</h2>
-        <p className="text-charcoal">
+      <section className="card flex flex-col gap-3 p-5">
+        <h2 className="heading text-lg">Przypomnienia w kalendarzu</h2>
+        <p className="text-muted">
           Subskrybuj ten adres w Kalendarzu Apple / Google. Każda płatność pojawi się jako wydarzenie z przypomnieniem dzień
           wcześniej — bez instalowania czegokolwiek.
         </p>
@@ -41,22 +41,22 @@ export default async function SettingsPage() {
             </a>
           </>
         ) : (
-          <p className="rounded-card bg-mist p-4 text-sm text-forest">
-            Ustaw zmienną <code className="font-semibold">ICS_TOKEN</code> w Vercelu, żeby włączyć kalendarz.
+          <p className="rounded-[var(--radius-field)] bg-canvas p-4 text-sm text-ink">
+            Ustaw zmienną <code className="font-medium">ICS_TOKEN</code> w Vercelu, żeby włączyć kalendarz.
           </p>
         )}
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="heading text-2xl">Kopia danych</h2>
-        <p className="text-charcoal">Wszystkie subskrypcje i karty jako JSON.</p>
+      <section className="card flex flex-col gap-3 p-5">
+        <h2 className="heading text-lg">Kopia danych</h2>
+        <p className="text-muted">Wszystkie subskrypcje i karty jako JSON.</p>
         <a href="/api/export" className={`${btn.outline} self-start`}>
           Pobierz eksport
         </a>
       </section>
 
       <form action={logout}>
-        <button className={btn.link}>Wyloguj</button>
+        <button className={btn.secondary}>Wyloguj</button>
       </form>
     </div>
   );

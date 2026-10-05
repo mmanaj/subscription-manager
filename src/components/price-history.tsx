@@ -47,48 +47,48 @@ export function PriceHistory({
   const rows = [...events].reverse();
 
   return (
-    <section>
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <h2 className="heading text-2xl">Historia ceny</h2>
+    <section className="card p-5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="heading text-lg">Historia ceny</h2>
         <button
           type="button"
           onClick={() => dialog.current?.showModal()}
-          className="inline-flex items-center gap-1 rounded-full border border-forest px-4 py-2 text-sm font-semibold text-forest transition hover:bg-mist"
+          className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline px-3 text-sm font-medium text-ink transition hover:bg-canvas"
         >
           <Plus size={16} strokeWidth={2.5} /> Zmiana ceny
         </button>
       </div>
 
       {events.length === 0 ? (
-        <p className="text-sm text-slate">Bez zmian. Gdy serwis zmieni cenę albo ją zapowie, dodaj ją tutaj — przeliczę historię i przyszłe płatności.</p>
+        <p className="text-sm text-muted">Bez zmian. Gdy serwis zmieni cenę albo ją zapowie, dodaj ją tutaj — przeliczę historię i przyszłe płatności.</p>
       ) : (
         <>
           {total !== 0 && (
-            <p className="mb-3 text-sm text-slate">
-              Od początku: <span className="font-semibold text-obsidian">{fmt(first!.oldAmount)}</span> →{" "}
-              <span className="font-semibold text-obsidian">{fmt(last!.newAmount)}</span> ({total > 0 ? "+" : ""}
+            <p className="mb-3 text-sm text-muted">
+              Od początku: <span className="font-medium text-ink">{fmt(first!.oldAmount)}</span> →{" "}
+              <span className="font-medium text-ink">{fmt(last!.newAmount)}</span> ({total > 0 ? "+" : ""}
               {total.toFixed(0)}%)
             </p>
           )}
-          <ol className={`relative ml-2 border-l-2 border-fog ${deleting ? "opacity-50" : ""}`}>
+          <ol className={`relative ml-2 border-l-2 border-hairline ${deleting ? "opacity-50" : ""}`}>
             {rows.map((ev) => {
               const pct = pctChange(ev.oldAmount, ev.newAmount);
               const future = ev.effectiveDate > today;
               return (
                 <li key={ev.id} className="relative mb-4 pl-5">
                   <span
-                    className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full ring-4 ring-paper ${future ? "bg-lime" : "bg-forest"}`}
+                    className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full ring-4 ring-paper ${future ? "bg-paper ring-ink" : "bg-ink"}`}
                   />
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="text-sm text-slate">
+                      <div className="text-sm text-muted">
                         {future ? "od " : ""}
                         {dateLong(ev.effectiveDate)}
-                        {future && <span className="ml-2 rounded-full bg-mist px-2 py-0.5 text-xs font-semibold text-forest">zapowiedziana</span>}
+                        {future && <span className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium text-ink shadow-hairline">zapowiedziana</span>}
                       </div>
-                      <div className="tabular font-semibold text-obsidian">
+                      <div className="tabular font-medium text-ink">
                         {fmt(ev.oldAmount)} → {fmt(ev.newAmount)}{" "}
-                        <span className={pct > 0 ? "text-alarm" : "text-spruce"}>
+                        <span className="text-muted">
                           {pct > 0 ? "+" : ""}
                           {pct.toFixed(0)}%
                         </span>
@@ -101,7 +101,7 @@ export function PriceHistory({
                         if (window.confirm("Usunąć tę zmianę ceny z historii?"))
                           startDelete(() => deletePriceChange(subId, ev.id));
                       }}
-                      className="rounded-full p-2 text-pebble hover:bg-fog hover:text-alarm"
+                      className="rounded-full p-2 text-muted hover:bg-canvas hover:text-ember"
                     >
                       <X size={16} />
                     </button>
@@ -110,9 +110,9 @@ export function PriceHistory({
               );
             })}
             <li className="relative pl-5">
-              <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full bg-pebble ring-4 ring-paper" />
-              <div className="text-sm text-slate">{startDate ? `start · ${dateLong(startDate)}` : "cena początkowa"}</div>
-              <div className="tabular font-semibold text-obsidian">{fmt(first!.oldAmount)}</div>
+              <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full bg-muted ring-4 ring-paper" />
+              <div className="text-sm text-muted">{startDate ? `start · ${dateLong(startDate)}` : "cena początkowa"}</div>
+              <div className="tabular font-medium text-ink">{fmt(first!.oldAmount)}</div>
             </li>
           </ol>
         </>
@@ -120,12 +120,12 @@ export function PriceHistory({
 
       <dialog
         ref={dialog}
-        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
+        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-ink-soft sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
         onClick={(ev) => ev.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-[28px]">Zmiana ceny</h2>
-          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-fog">
+          <h2 className="heading text-xl">Zmiana ceny</h2>
+          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
             <X size={22} />
           </button>
         </div>
@@ -138,8 +138,8 @@ export function PriceHistory({
               <input name="amount" required inputMode="decimal" placeholder="49,99" className={`${inputCls} tabular`} />
             </Field>
           </div>
-          <p className="text-xs text-slate">Data w przyszłości = zapowiedziana podwyżka. Do tego dnia płatności liczą się po starej cenie.</p>
-          {state?.error && <p className="text-sm font-semibold text-alarm">{state.error}</p>}
+          <p className="text-xs text-muted">Data w przyszłości = zapowiedziana podwyżka. Do tego dnia płatności liczą się po starej cenie.</p>
+          {state?.error && <p className="text-sm font-medium text-ember">{state.error}</p>}
           <Submit pending={pending}>Zapisz zmianę</Submit>
         </form>
       </dialog>

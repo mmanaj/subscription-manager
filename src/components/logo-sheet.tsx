@@ -68,12 +68,12 @@ export function LogoSheet({
 
       <dialog
         ref={dialog}
-        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
+        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-ink-soft sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-[28px]">Logo</h2>
-          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-fog">
+          <h2 className="heading text-xl">Logo</h2>
+          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
             <X size={22} />
           </button>
         </div>
@@ -85,7 +85,7 @@ export function LogoSheet({
           }}
           className="flex flex-col gap-2"
         >
-          <label className="text-sm font-semibold text-obsidian" htmlFor={`logo-domain-${id}`}>
+          <label className="text-sm font-medium text-ink" htmlFor={`logo-domain-${id}`}>
             Strona serwisu
           </label>
           <div className="flex gap-2">
@@ -102,15 +102,15 @@ export function LogoSheet({
             <button
               type="submit"
               disabled={pending || !draft.trim()}
-              className="shrink-0 rounded-full bg-lime px-5 font-semibold text-forest transition hover:brightness-95 disabled:opacity-50"
+              className="shrink-0 rounded-full bg-ink px-5 font-medium text-paper transition hover:bg-ink-soft disabled:opacity-50"
             >
               {pending ? "…" : "Pobierz"}
             </button>
           </div>
-          <p className="text-xs text-slate">Pobiorę ikonę z tej strony i zapiszę ją u Ciebie.</p>
+          <p className="text-xs text-muted">Pobiorę ikonę z tej strony i zapiszę ją u Ciebie.</p>
         </form>
 
-        {error && <p className="mt-3 text-sm font-semibold text-alarm">{error}</p>}
+        {error && <p className="mt-3 text-sm font-medium text-ember">{error}</p>}
 
         <div className="mt-6 flex flex-col gap-2">
           <input
@@ -134,7 +134,7 @@ export function LogoSheet({
             type="button"
             disabled={pending}
             onClick={() => file.current?.click()}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-forest px-6 py-3 font-semibold text-forest transition hover:bg-mist disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-ink px-6 py-3 font-medium text-ink transition hover:bg-canvas disabled:opacity-50"
           >
             <ImageUp size={18} /> Wgraj własny obrazek
           </button>
@@ -143,7 +143,7 @@ export function LogoSheet({
               type="button"
               disabled={pending}
               onClick={() => run(() => resetLogo(id, "auto"))}
-              className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold text-forest transition hover:bg-mist disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-medium text-ink transition hover:bg-canvas disabled:opacity-50"
             >
               <RefreshCw size={18} /> Wróć do automatycznego
             </button>
@@ -153,7 +153,7 @@ export function LogoSheet({
               type="button"
               disabled={pending}
               onClick={() => run(() => resetLogo(id, "monogram"))}
-              className="py-2 text-sm font-semibold text-slate underline underline-offset-4"
+              className="py-2 text-sm font-medium text-muted underline underline-offset-4"
             >
               Bez logo — pokaż literę
             </button>

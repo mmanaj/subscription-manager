@@ -4,17 +4,15 @@ export const metadata = { title: "Logowanie" };
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-dvh flex-col justify-between bg-forest px-6 py-10 text-paper sm:px-12">
-      <span className="text-[26px] font-black tracking-[-0.06em] text-lime">subs.</span>
-      <div className="mx-auto w-full max-w-md">
-        <h1 className="display text-[72px] text-lime sm:text-[105px]">
-          ILE
-          <br />
-          PŁACĘ?
-        </h1>
+    <main className="flex min-h-dvh items-center justify-center p-4">
+      <div className="card w-full max-w-sm p-6 sm:p-8">
+        <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-full bg-ink text-lg font-medium tracking-tight text-paper">
+          s.
+        </div>
+        <h1 className="heading text-2xl">Zaloguj się</h1>
+        <p className="mt-1 text-muted">Prywatne subskrypcje. Tylko dla właściciela.</p>
         <LoginForm />
       </div>
-      <span className="text-sm text-mist/60">Prywatne. Tylko dla właściciela.</span>
     </main>
   );
 }
