@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-forest: #163300;
+  --color-lime: #9fe870;
+  --color-spruce: #054d28;
+  --color-mist: #e2f6d5;
+  --color-signal: #0b4c72;
+  --color-alarm: #cb272f;
+  --color-charcoal: #454745;
+  --color-obsidian: #0e0f0c;
+  --color-pebble: #868685;
+  --color-slate: #6a6c6a;
+  --color-fog: #e8ebe6;
+  --color-paper: #ffffff;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --radius-card: 10px;
+  --radius-large: 28px;
+
+  --shadow-hairline: rgba(14, 15, 12, 0.12) 0px 0px 0px 1px;
+  --shadow-panel: rgba(0, 0, 0, 0.08) 0px 6px 20px 0px;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    font-feature-settings: "calt";
+  }
+  body {
+    @apply bg-paper text-charcoal antialiased;
+    letter-spacing: -0.006em;
+  }
+  ::selection {
+    background: var(--color-lime);
+    color: var(--color-forest);
+  }
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+}
+
+@utility display {
+  font-weight: 900;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+}
+
+@utility heading {
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--color-obsidian);
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
