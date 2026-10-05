@@ -45,7 +45,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
         ← Subskrypcje
       </Link>
 
-      <header className="flex flex-col gap-4">
+      <header className="rise flex flex-col gap-4">
         <div className="flex items-center gap-4">
           <LogoSheet
             id={s.id}
@@ -75,7 +75,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
       </header>
 
       {s.next && (
-        <section className="rounded-large bg-forest p-6 text-paper sm:p-8">
+        <section className="rise rounded-large bg-forest p-6 text-paper sm:p-8" style={{ "--i": 1 } as React.CSSProperties}>
           <p className="text-sm font-semibold text-mist">Następna płatność</p>
           <p className="display mt-2 text-[44px] text-lime sm:text-[61px]">{relative(s.next, today)}</p>
           <p className="mt-2 text-mist">
@@ -90,7 +90,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
         </section>
       )}
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="rise grid gap-8 md:grid-cols-2" style={{ "--i": 2 } as React.CSSProperties}>
         <dl className="divide-y divide-fog rounded-card shadow-hairline">
           {s.startDate && <Row label="Od">{dateLong(s.startDate)}</Row>}
           <Row label="Do">{s.endDate ? dateLong(s.endDate) : "bezterminowo"}</Row>

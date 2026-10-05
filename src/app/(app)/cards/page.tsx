@@ -28,13 +28,13 @@ export default async function CardsPage() {
         </Empty>
       ) : (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((c) => {
+          {cards.map((c, i) => {
             const on = subs.filter((s) => s.cardId === c.id && s.live);
             const exp = cardExpiry(c);
             const expired = exp && exp < today;
             const soon = exp && !expired && on.some((s) => s.next && s.next > exp);
             return (
-              <li key={c.id} className="flex flex-col gap-3">
+              <li key={c.id} className="rise flex flex-col gap-3" style={{ "--i": i } as React.CSSProperties}>
                 <Link href={`/cards/${c.id}/edit`} className="transition active:scale-[0.98]">
                   <CardVisual card={c} />
                 </Link>

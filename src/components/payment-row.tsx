@@ -4,10 +4,14 @@ import { dateShort, money, relative } from "@/lib/format";
 import { cycleLabel } from "@/lib/billing";
 import { Avatar } from "./ui";
 
-export function PaymentRow({ p, today }: { p: Payment; today: string }) {
+export function PaymentRow({ p, today, index = 0 }: { p: Payment; today: string; index?: number }) {
   const s = p.sub;
   return (
-    <Link href={`/subscriptions/${s.id}`} className="flex items-center gap-3 rounded-card px-2 py-3 transition hover:bg-fog/60 active:bg-fog">
+    <Link
+      href={`/subscriptions/${s.id}`}
+      style={{ "--i": index } as React.CSSProperties}
+      className="rise press flex items-center gap-3 rounded-card px-2 py-3 hover:bg-fog/60 active:bg-fog"
+    >
       <div className="w-12 shrink-0 text-center">
         <div className="text-xl font-black leading-none tracking-tight text-obsidian">{dateShort(p.date).split(" ")[0]}</div>
         <div className="text-[11px] font-semibold uppercase text-pebble">{dateShort(p.date).split(" ")[1]}</div>

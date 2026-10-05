@@ -120,7 +120,7 @@ export function PriceHistory({
 
       <dialog
         ref={dialog}
-        className="m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal backdrop:bg-obsidian/50 sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
+        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
         onClick={(ev) => ev.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">

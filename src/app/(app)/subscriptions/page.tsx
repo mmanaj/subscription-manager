@@ -78,11 +78,11 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
       ) : (
         <>
           <ul className="grid gap-2 md:grid-cols-2">
-            {list.map((s) => (
-              <li key={s.id}>
+            {list.map((s, i) => (
+              <li key={s.id} className="rise" style={{ "--i": i } as React.CSSProperties}>
                 <Link
                   href={`/subscriptions/${s.id}`}
-                  className="flex items-center gap-3 rounded-card bg-paper p-3 shadow-hairline transition hover:bg-fog/50 active:bg-fog"
+                  className="press flex items-center gap-3 rounded-card bg-paper p-3 shadow-hairline hover:bg-fog/50 active:bg-fog"
                 >
                   <Avatar name={s.name} color={s.color} logo={s.logo} />
                   <div className="min-w-0 flex-1">

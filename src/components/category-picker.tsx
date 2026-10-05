@@ -65,7 +65,7 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
       {/* Bottom sheet on mobile, centered card on desktop. Not a <form>: it lives inside the subscription form. */}
       <dialog
         ref={dialog}
-        className="m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal backdrop:bg-obsidian/50 sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
+        className="sheet m-0 mt-auto w-full max-w-none rounded-t-large bg-paper p-6 pb-10 text-charcoal sm:m-auto sm:max-w-md sm:rounded-large sm:pb-6"
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">

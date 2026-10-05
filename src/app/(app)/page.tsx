@@ -5,7 +5,8 @@ import { AlertTriangle, CalendarClock, CreditCard, Hourglass, TrendingUp } from 
 import { Bars } from "@/components/bars";
 import { PaymentCalendar } from "@/components/payment-calendar";
 import { PaymentRow } from "@/components/payment-row";
-import { BigMoney, btn, Empty, SectionTitle, Segments } from "@/components/ui";
+import { CountUpMoney } from "@/components/count-up";
+import { btn, Empty, SectionTitle, Segments } from "@/components/ui";
 import { dashboardStats, isScope, loadAll, SCOPES, sum } from "@/lib/data";
 import { money } from "@/lib/format";
 
@@ -58,9 +59,9 @@ export default async function Dashboard(props: PageProps<"/">) {
             />
           </div>
         )}
-        <section className="rounded-large bg-forest p-6 text-paper sm:p-10">
+        <section className="rise rounded-large bg-forest p-6 text-paper sm:p-10">
           <p className="text-sm font-semibold text-mist">Płacisz średnio miesięcznie</p>
-          <BigMoney value={st.monthly} className="mt-3 block text-[64px] text-lime sm:text-[105px]" />
+          <CountUpMoney value={st.monthly} className="mt-3 block text-[64px] text-lime sm:text-[105px]" />
           <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4">
             <Stat label="Rocznie" value={money(st.yearly, "PLN", { compact: true })} />
             <Stat label="W tym miesiącu" value={money(st.thisMonthTotal, "PLN", { compact: true })} />
@@ -90,11 +91,16 @@ export default async function Dashboard(props: PageProps<"/">) {
               </>
             );
             return a.href ? (
-              <Link key={i} href={a.href} className="flex items-center gap-3 rounded-card bg-mist p-3 transition hover:brightness-[0.98]">
+              <Link
+                key={i}
+                href={a.href}
+                style={{ "--i": i + 1 } as React.CSSProperties}
+                className="rise press flex items-center gap-3 rounded-card bg-mist p-3 hover:brightness-[0.98]"
+              >
                 {body}
               </Link>
             ) : (
-              <div key={i} className="flex items-center gap-3 rounded-card bg-mist p-3">
+              <div key={i} style={{ "--i": i + 1 } as React.CSSProperties} className="rise flex items-center gap-3 rounded-card bg-mist p-3">
                 {body}
               </div>
             );
@@ -103,7 +109,7 @@ export default async function Dashboard(props: PageProps<"/">) {
       )}
 
       <div className="grid grid-cols-1 gap-10 sm:gap-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <section className="min-w-0 lg:col-start-2 lg:row-start-1">
+        <section className="rise min-w-0 lg:col-start-2 lg:row-start-1" style={{ "--i": 2 } as React.CSSProperties}>
           <SectionTitle>Kalendarz</SectionTitle>
           <PaymentCalendar payments={st.calendar} today={data.today} />
         </section>
@@ -118,8 +124,8 @@ export default async function Dashboard(props: PageProps<"/">) {
           </SectionTitle>
           {st.next30.length ? (
             <div className="-mx-2 divide-y divide-fog">
-              {st.next30.map((p) => (
-                <PaymentRow key={`${p.sub.id}-${p.date}`} p={p} today={data.today} />
+              {st.next30.map((p, i) => (
+                <PaymentRow key={`${p.sub.id}-${p.date}`} p={p} today={data.today} index={i + 2} />
               ))}
             </div>
           ) : (

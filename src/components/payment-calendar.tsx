@@ -27,6 +27,11 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
   const first = monthKey(today);
   const last = shiftMonth(first, 5);
   const [month, setMonth] = useState(first);
+  const [dir, setDir] = useState<"next" | "prev" | null>(null);
+  const go = (n: number) => {
+    setDir(n > 0 ? "next" : "prev");
+    setMonth(shiftMonth(month, n));
+  };
   const byDay = useMemo(() => {
     const m = new Map<string, CalendarPayment[]>();
     for (const p of payments) m.set(p.date, [...(m.get(p.date) ?? []), p]);
@@ -53,12 +58,12 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
           type="button"
           aria-label="Poprzedni miesiąc"
           disabled={month <= first}
-          onClick={() => setMonth(shiftMonth(month, -1))}
+          onClick={() => go(-1)}
           className="rounded-full p-2 text-forest transition hover:bg-paper disabled:opacity-30"
         >
           <ChevronLeft size={20} />
         </button>
-        <div className="text-center">
+        <div key={month} className={`text-center ${dir === "next" ? "slide-from-right" : dir === "prev" ? "slide-from-left" : ""}`}>
           <div className="font-black capitalize tracking-tight text-obsidian">{monthLabel}</div>
           <div className="tabular text-xs font-semibold text-slate">{monthTotal ? pln(monthTotal) : "bez płatności"}</div>
         </div>
@@ -66,14 +71,17 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
           type="button"
           aria-label="Następny miesiąc"
           disabled={month >= last}
-          onClick={() => setMonth(shiftMonth(month, 1))}
+          onClick={() => go(1)}
           className="rounded-full p-2 text-forest transition hover:bg-paper disabled:opacity-30"
         >
           <ChevronRight size={20} />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div
+        key={month}
+        className={`grid grid-cols-7 gap-1 text-center ${dir === "next" ? "slide-from-right" : dir === "prev" ? "slide-from-left" : ""}`}
+      >
         {WEEKDAYS.map((d) => (
           <div key={d} className="pb-1 text-[11px] font-semibold uppercase text-pebble">
             {d}
@@ -92,7 +100,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
               onClick={() => setSelected(d)}
               aria-pressed={isSel}
               aria-label={`${Number(d.slice(8))}${items.length ? `, ${items.length} płatn.` : ""}`}
-              className={`flex aspect-square min-h-11 flex-col items-center justify-start gap-0.5 rounded-card pt-1 transition ${
+              className={`flex aspect-square min-h-11 flex-col active:scale-95 items-center justify-start gap-0.5 rounded-card pt-1 transition ${
                 items.length || isSel ? "bg-paper" : "hover:bg-paper/60"
               } ${isSel ? "ring-2 ring-forest" : ""} ${past && !isSel ? "opacity-45" : ""}`}
             >
@@ -116,7 +124,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
         })}
       </div>
 
-      <div className="mt-4 border-t border-paper pt-3">
+      <div key={selected} className="fade-in mt-4 border-t border-paper pt-3">
         <div className="mb-1 text-sm font-semibold text-obsidian first-letter:uppercase">{selectedLabel}</div>
         {dayList.length === 0 ? (
           <p className="text-sm text-slate">Nic nie schodzi.</p>
