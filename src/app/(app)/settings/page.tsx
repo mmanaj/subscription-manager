@@ -16,7 +16,7 @@ export default async function SettingsPage() {
   const icsUrl = token ? `${proto}://${host}/api/calendar/${token}` : null;
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8">
+    <div className="flex max-w-2xl flex-col gap-12">
       <PageHeader title="Więcej" />
 
       <Link href="/settings/categories" className="-mx-3 flex items-center justify-between rounded-[var(--radius-field)] border-y border-hairline px-3 py-4 transition hover:bg-surface-alt">
@@ -47,7 +47,7 @@ export default async function SettingsPage() {
         )}
       </section>
 
-      <section className="flex flex-col gap-3 border-t border-hairline pt-6">
+      <section className="flex flex-col gap-3 border-t border-hairline pt-10">
         <h2 className="heading text-lg">Kopia danych</h2>
         <p className="text-muted">Wszystkie subskrypcje i karty jako JSON.</p>
         <a href="/api/export" className={`${btn.outline} self-start`}>

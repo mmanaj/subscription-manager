@@ -40,7 +40,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
   );
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-12 sm:gap-16">
       <Link href="/subscriptions" className="text-sm text-muted hover:text-ink">
         ← Subskrypcje
       </Link>
@@ -87,7 +87,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
         )}
       </header>
 
-      <div className="rise grid items-start gap-8 md:grid-cols-2 md:gap-12" style={{ "--i": 2 } as React.CSSProperties}>
+      <div className="rise grid items-start gap-12 md:grid-cols-2 md:gap-16" style={{ "--i": 2 } as React.CSSProperties}>
         <dl className="divide-y divide-hairline border-y border-hairline">
           {s.startDate && <Row label="Od">{dateLong(s.startDate)}</Row>}
           <Row label="Do">{s.endDate ? dateLong(s.endDate) : "bezterminowo"}</Row>

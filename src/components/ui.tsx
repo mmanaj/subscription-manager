@@ -91,7 +91,7 @@ export function Tag({ children, tone = "soft" }: { children: React.ReactNode; to
 
 export function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="mb-3 flex items-end justify-between gap-4">
+    <div className="mb-4 flex items-end justify-between gap-4">
       <h2 className="heading text-lg">{children}</h2>
       {action}
     </div>
@@ -100,7 +100,7 @@ export function SectionTitle({ children, action }: { children: React.ReactNode; 
 
 export function PageHeader({ title, back, action }: { title: React.ReactNode; back?: string; action?: React.ReactNode }) {
   return (
-    <header className="mb-6 flex flex-col gap-2 sm:mb-8">
+    <header className="mb-8 flex flex-col gap-2 sm:mb-10">
       {back && (
         <Link href={back} className="text-sm text-muted hover:text-ink">
           ← Wróć

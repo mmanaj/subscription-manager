@@ -10,6 +10,7 @@ import { ScopeTabs } from "@/components/scope";
 import { btn, Empty, SectionTitle } from "@/components/ui";
 import { dashboardStats, isScope, loadAll, sum } from "@/lib/data";
 import { money } from "@/lib/format";
+import { plural } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -40,25 +41,35 @@ export default async function Dashboard(props: PageProps<"/">) {
   }
 
   return (
-    <div className="flex flex-col gap-8 sm:gap-10">
+    <div className="flex flex-col gap-14 sm:gap-20">
       {/* Hero */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         {scopesInUse.size > 1 && (
           <ScopeTabs active={scope} available={scopesInUse} href={(t) => (t ? `/?typ=${t}` : "/")} />
         )}
-        <section className="rise">
-          <p className="caption">Płacisz średnio miesięcznie</p>
-          <CountUpMoney value={st.monthly} className="mt-2 block text-5xl sm:text-6xl" />
-          <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-field)] bg-hairline sm:grid-cols-4">
-            <Stat label="Rocznie" value={money(st.yearly, "PLN", { compact: true })} />
-            <Stat label="W tym miesiącu" value={money(st.thisMonthTotal, "PLN", { compact: true })} />
-            <Stat label="Zostało w tym mies." value={money(st.thisMonthLeft, "PLN", { compact: true })} />
-            <Stat
-              label="Aktywne"
-              value={String(st.liveCount)}
-              hint={st.trialCount ? `${st.trialCount} w okresie próbnym` : undefined}
-            />
+        <section className="rise grid gap-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-end sm:gap-12">
+          <div>
+            <p className="caption">Płacisz średnio miesięcznie</p>
+            <CountUpMoney value={st.monthly} className="mt-2 block text-5xl sm:text-6xl" />
+            <p className="mt-3 text-muted">
+              <span className="tabular font-medium text-ink">{money(st.yearly, "PLN", { compact: true })}</span> rocznie
+              <span className="px-1.5 text-hairline">·</span>
+              <span className="tabular font-medium text-ink">{st.liveCount}</span>{" "}
+              {plural(st.liveCount, ["aktywna", "aktywne", "aktywnych"])}
+              {st.trialCount > 0 && (
+                <>
+                  <span className="px-1.5 text-hairline">·</span>
+                  {st.trialCount} w okresie próbnym
+                </>
+              )}
+            </p>
           </div>
+          <MonthProgress
+            month={new Intl.DateTimeFormat("pl-PL", { month: "long", timeZone: "UTC" }).format(new Date(`${data.today}T00:00:00Z`))}
+            total={st.thisMonthTotal}
+            paid={st.thisMonthPaid}
+            left={st.thisMonthLeft}
+          />
         </section>
       </div>
 
@@ -95,7 +106,7 @@ export default async function Dashboard(props: PageProps<"/">) {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-x-12">
+      <div className="grid grid-cols-1 gap-14 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-x-16 lg:gap-y-20">
         <section className="rise min-w-0 lg:col-start-2 lg:row-start-1" style={{ "--i": 2 } as React.CSSProperties}>
           <PaymentCalendar payments={st.calendar} today={data.today} />
         </section>
@@ -119,7 +130,7 @@ export default async function Dashboard(props: PageProps<"/">) {
           )}
         </section>
 
-        <section className="flex min-w-0 flex-col gap-10 lg:col-start-2 lg:row-start-2">
+        <section className="flex min-w-0 flex-col gap-14 lg:col-start-2 lg:row-start-2">
           {!scope && st.byScope.length > 1 && (
             <div>
               <SectionTitle>Czyje</SectionTitle>
@@ -149,12 +160,30 @@ export default async function Dashboard(props: PageProps<"/">) {
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/** This month at a glance: what's already gone vs. still to come, as one split bar. */
+function MonthProgress({ month, total, paid, left }: { month: string; total: number; paid: number; left: number }) {
+  const pct = total ? Math.round((paid / total) * 100) : 0;
   return (
-    <div className="bg-surface-alt px-4 py-3">
-      <div className="caption">{label}</div>
-      <div className="tabular mt-1 text-xl font-semibold tracking-tight text-ink sm:text-2xl">{value}</div>
-      {hint && <div className="text-xs text-muted">{hint}</div>}
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="caption first-letter:uppercase">{month}</span>
+        <span className="tabular text-xl font-semibold tracking-tight text-ink">{money(total, "PLN", { compact: true })}</span>
+      </div>
+      <div
+        className="mt-3 h-2 overflow-hidden rounded-full bg-canvas"
+        role="img"
+        aria-label={`Zapłacono ${pct}% z ${money(total)} w tym miesiącu`}
+      >
+        <div className="grow-x h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-2 flex justify-between gap-3 text-sm">
+        <span className="text-muted">
+          Zapłacone <span className="tabular font-medium text-ink">{money(paid, "PLN", { compact: true })}</span>
+        </span>
+        <span className="text-muted">
+          Zostało <span className="tabular font-medium text-ink">{money(left, "PLN", { compact: true })}</span>
+        </span>
+      </div>
     </div>
   );
 }

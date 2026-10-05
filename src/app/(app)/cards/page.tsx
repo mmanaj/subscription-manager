@@ -39,7 +39,7 @@ export default async function CardsPage() {
           </Link>
         </Empty>
       ) : (
-        <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-x-12">
+        <div className="grid items-start gap-14 lg:grid-cols-2 lg:gap-x-16">
           {sorted.map((c, i) => {
             const on = live.filter((s) => s.cardId === c.id).sort((a, b) => (a.next ?? "9").localeCompare(b.next ?? "9"));
             const exp = cardExpiry(c);
