@@ -7,7 +7,7 @@ const globalForDb = globalThis as unknown as { pg?: ReturnType<typeof postgres> 
 
 const client =
   globalForDb.pg ??
-  postgres(process.env.DATABASE_URL!, {
+  postgres((process.env.DATABASE_URL || process.env.POSTGRES_URL)!, {
     max: 5,
     // Neon's pooler (pgbouncer, transaction mode) doesn't support prepared statements
     prepare: false,

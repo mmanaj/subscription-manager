@@ -9,8 +9,8 @@
     "lint": "eslint",
     "test": "tsx --test src/lib/*.test.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "vercel-build": "drizzle-kit migrate && next build",
+    "db:migrate": "node scripts/migrate.mjs",
+    "vercel-build": "node scripts/migrate.mjs && next build",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {

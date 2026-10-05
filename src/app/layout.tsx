@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { missingConfig } from "@/lib/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,9 +24,26 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const missing = missingConfig();
   return (
     <html lang="pl" className={inter.variable}>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">{missing.length ? <SetupNeeded missing={missing} /> : children}</body>
     </html>
+  );
+}
+
+function SetupNeeded({ missing }: { missing: string[] }) {
+  return (
+    <main className="flex min-h-dvh flex-col justify-center gap-6 bg-forest px-6 py-10 text-paper sm:px-12">
+      <h1 className="display text-[56px] text-lime sm:text-[89px]">PRAWIE GOTOWE.</h1>
+      <p className="max-w-lg text-mist">Brakuje zmiennych środowiskowych. Ustaw je w Vercel → Settings → Environment Variables i zrób Redeploy:</p>
+      <ul className="flex flex-col gap-2">
+        {missing.map((m) => (
+          <li key={m} className="w-fit rounded-full bg-paper/10 px-4 py-2 font-semibold text-lime">
+            {m}
+          </li>
+        ))}
+      </ul>
+    </main>
   );
 }
