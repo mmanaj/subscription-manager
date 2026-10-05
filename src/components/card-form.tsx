@@ -1,58 +1,119 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import type { Card } from "@/db/schema";
 import type { FormState } from "@/app/actions";
+import { BRANDS, detectBrand, formatExpiryInput, parseExpiry } from "@/lib/card-brand";
 import { ColorPicker, Field, inputCls, Submit } from "./form-bits";
 import { CardVisual } from "./card-visual";
 
 export function CardForm({ action, card }: { action: (p: FormState, fd: FormData) => Promise<FormState>; card?: Card | null }) {
   const [state, formAction] = useActionState(action, undefined);
   const e = state?.fieldErrors ?? {};
-  const [preview, setPreview] = useState({
-    name: card?.name ?? "",
-    brand: card?.brand ?? "",
-    last4: card?.last4 ?? "",
-    expMonth: card?.expMonth ?? null,
-    expYear: card?.expYear ?? null,
-    color: card?.color ?? "forest",
-  });
-  const set = (k: keyof typeof preview) => (ev: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setPreview((p) => ({ ...p, [k]: ev.target.value }));
+  const [name, setName] = useState(card?.name ?? "");
+  const [brand, setBrand] = useState(card?.brand ?? "");
+  const [last4, setLast4] = useState(card?.last4 ?? "");
+  const [expiry, setExpiry] = useState(
+    card?.expMonth && card?.expYear ? `${String(card.expMonth).padStart(2, "0")}/${String(card.expYear).slice(-2)}` : "",
+  );
+  const [color, setColor] = useState(card?.color ?? "forest");
+  const [trimmedNotice, setTrimmedNotice] = useState(false);
+
+  const exp = parseExpiry(expiry);
+  const expiryError = expiry && !exp && expiry.replace(/\D/g, "").length >= 4 ? "Np. 08/28" : undefined;
+
+  // If a full card number lands here (paste/autofill), keep only the last 4 digits and use the
+  // leading digits to detect the network — locally, before anything is submitted.
+  function onLast4(raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length > 4) {
+      const detected = detectBrand(digits);
+      if (detected) setBrand(detected);
+      setTrimmedNotice(true);
+    }
+    setLast4(digits.slice(-4));
+  }
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-6">
-      <CardVisual card={{ ...preview, expMonth: Number(preview.expMonth) || null, expYear: Number(preview.expYear) || null }} />
-      <Field label="Nazwa" hint="np. mBank Visa, Revolut" error={e.name}>
-        <input name="name" required defaultValue={card?.name ?? ""} onChange={set("name")} className={inputCls} aria-invalid={!!e.name} />
+      <CardVisual card={{ name, brand, last4, expMonth: exp?.month ?? null, expYear: exp?.year ?? null, color }} />
+
+      <p className="flex items-start gap-2 rounded-card bg-mist px-4 py-3 text-sm text-forest">
+        <ShieldCheck size={18} className="mt-0.5 shrink-0" />
+        Wystarczą 4 ostatnie cyfry i data ważności. Pełnego numeru ani CVV nie podawaj — aplikacja ich nie potrzebuje i nie
+        zapisuje.
+      </p>
+
+      <Field label="Nazwa" hint="np. mBank, Revolut, firmowa" error={e.name}>
+        <input
+          name="name"
+          required
+          autoComplete="off"
+          value={name}
+          onChange={(ev) => setName(ev.target.value)}
+          className={inputCls}
+          aria-invalid={!!e.name}
+        />
       </Field>
+
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 text-sm font-semibold text-obsidian">Typ</legend>
+        <input type="hidden" name="brand" value={brand} />
+        <div className="flex flex-wrap gap-2">
+          {BRANDS.map((b) => (
+            <button
+              key={b}
+              type="button"
+              aria-pressed={brand === b}
+              onClick={() => setBrand(brand === b ? "" : b)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                brand === b ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"
+              }`}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Typ">
-          <select name="brand" defaultValue={card?.brand ?? ""} onChange={set("brand")} className={inputCls}>
-            <option value="">—</option>
-            <option>Visa</option>
-            <option>Mastercard</option>
-            <option>Amex</option>
-            <option>PayPal</option>
-            <option>BLIK</option>
-            <option>Inne</option>
-          </select>
-        </Field>
         <Field label="Ostatnie 4 cyfry" error={e.last4}>
-          <input name="last4" inputMode="numeric" maxLength={4} pattern="\d{4}" defaultValue={card?.last4 ?? ""} onChange={set("last4")} className={`${inputCls} tabular`} />
+          <input
+            name="last4"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="1234"
+            value={last4}
+            onChange={(ev) => onLast4(ev.target.value)}
+            className={`${inputCls} tabular tracking-widest`}
+            aria-invalid={!!e.last4}
+          />
+        </Field>
+        <Field label="Ważna do" error={expiryError ?? e.expMonth ?? e.expYear}>
+          <input
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="MM/RR"
+            value={expiry}
+            onChange={(ev) => setExpiry(formatExpiryInput(ev.target.value))}
+            className={`${inputCls} tabular`}
+            aria-invalid={!!expiryError}
+          />
+          <input type="hidden" name="expMonth" value={exp?.month ?? ""} />
+          <input type="hidden" name="expYear" value={exp?.year ?? ""} />
         </Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Ważna do — miesiąc" error={e.expMonth}>
-          <input name="expMonth" type="number" min={1} max={12} inputMode="numeric" placeholder="MM" defaultValue={card?.expMonth ?? ""} onChange={set("expMonth")} className={inputCls} />
-        </Field>
-        <Field label="Rok" error={e.expYear}>
-          <input name="expYear" type="number" min={2000} max={2100} inputMode="numeric" placeholder="RRRR" defaultValue={card?.expYear ?? ""} onChange={set("expYear")} className={inputCls} />
-        </Field>
-      </div>
+      {trimmedNotice && (
+        <p className="-mt-3 text-sm text-spruce">
+          Wygląda na pełny numer — zostawiłem tylko 4 ostatnie cyfry{brand ? ` i rozpoznałem: ${brand}` : ""}. Reszta nigdzie nie
+          trafiła.
+        </p>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-semibold text-obsidian">Kolor</span>
-        <ColorPicker name="color" value={preview.color} onChange={(c) => setPreview((p) => ({ ...p, color: c }))} />
+        <ColorPicker name="color" value={color} onChange={setColor} />
       </div>
       {state?.error && <p className="rounded-card bg-alarm/10 px-4 py-3 text-sm font-semibold text-alarm">{state.error}</p>}
       <Submit>{card ? "Zapisz kartę" : "Dodaj kartę"}</Submit>
