@@ -119,6 +119,18 @@ export function cardExpiry(c: Card): ISODate | null {
   return endOfMonth(`${c.expYear}-${String(c.expMonth).padStart(2, "0")}-01`);
 }
 
+/** Plain, serialisable payment for the client-side calendar. */
+export type CalendarPayment = {
+  date: ISODate;
+  id: number;
+  name: string;
+  color: string;
+  logo: Logo | null;
+  amount: number;
+  currency: string;
+  pln: number;
+};
+
 export type Alert = { kind: "trial" | "card" | "ending" | "fx" | "price"; title: string; detail: string; href?: string };
 
 export const SCOPES: Record<SubscriptionScope, { label: string; plural: string }> = {
@@ -145,6 +157,16 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
   const thisMonthPaid = sum(thisMonth.filter((p) => p.date < today).map((p) => p.pln));
 
   const next30 = paymentsBetween(subs, today, addDays(today, 30));
+  const calendar: CalendarPayment[] = paymentsBetween(subs, monthStart, endOfMonth(addMonths(today, 5))).map((p) => ({
+    date: p.date,
+    id: p.sub.id,
+    name: p.sub.name,
+    color: p.sub.color,
+    logo: p.sub.logo,
+    amount: p.amount,
+    currency: p.sub.currency,
+    pln: p.pln,
+  }));
   const next12m = sum(paymentsBetween(subs, today, addDays(addMonths(today, 12), -1)).map((p) => p.pln));
 
   const group = (key: (s: EnrichedSub) => string) => {
@@ -208,6 +230,7 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
     thisMonthPaid,
     thisMonthLeft: thisMonthTotal - thisMonthPaid,
     next30,
+    calendar,
     byCategory,
     byCard,
     byScope,

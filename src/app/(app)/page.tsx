@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { backfillLogos } from "@/lib/logos";
 import { AlertTriangle, CalendarClock, CreditCard, Hourglass, TrendingUp } from "lucide-react";
 import { Bars } from "@/components/bars";
+import { PaymentCalendar } from "@/components/payment-calendar";
 import { PaymentRow } from "@/components/payment-row";
 import { BigMoney, btn, Empty, SectionTitle, Segments } from "@/components/ui";
 import { dashboardStats, isScope, loadAll, SCOPES, sum } from "@/lib/data";
@@ -102,7 +103,12 @@ export default async function Dashboard(props: PageProps<"/">) {
       )}
 
       <div className="grid grid-cols-1 gap-10 sm:gap-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <section className="min-w-0">
+        <section className="min-w-0 lg:col-start-2 lg:row-start-1">
+          <SectionTitle>Kalendarz</SectionTitle>
+          <PaymentCalendar payments={st.calendar} today={data.today} />
+        </section>
+
+        <section className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1">
           <SectionTitle
             action={
               <span className="tabular text-sm font-semibold text-slate">{money(sum(st.next30.map((p) => p.pln)))}</span>
@@ -121,7 +127,7 @@ export default async function Dashboard(props: PageProps<"/">) {
           )}
         </section>
 
-        <section className="flex min-w-0 flex-col gap-10">
+        <section className="flex min-w-0 flex-col gap-10 lg:col-start-2 lg:row-start-2">
           {!scope && st.byScope.length > 1 && (
             <div>
               <SectionTitle>Czyje</SectionTitle>
