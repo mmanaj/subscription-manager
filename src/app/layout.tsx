@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f5f5f5",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -34,7 +34,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 function SetupNeeded({ missing }: { missing: string[] }) {
   return (
     <main className="flex min-h-dvh items-center justify-center p-4">
-      <div className="card w-full max-w-md p-6">
+      <div className="w-full max-w-md">
         <h1 className="heading text-2xl">Prawie gotowe</h1>
         <p className="mt-2 text-muted">
           Brakuje zmiennych środowiskowych. Ustaw je w Vercel → Settings → Environment Variables i zrób Redeploy:

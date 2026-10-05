@@ -135,7 +135,7 @@ export function Segments({ items, active }: { items: { href: string; label: stri
 
 export function Empty({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="card px-6 py-10 text-center">
+    <div className="rounded-large border border-dashed border-hairline px-6 py-10 text-center">
       <p className="heading text-lg">{title}</p>
       {children && <div className="mt-4 flex flex-col items-center gap-3 text-muted">{children}</div>}
     </div>

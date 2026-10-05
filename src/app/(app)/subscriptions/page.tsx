@@ -105,7 +105,7 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
               <ChevronDown size={16} className="transition-transform duration-200 group-open:rotate-180" />
             </span>
           </summary>
-          <div className="card mt-2 flex flex-col gap-3 p-4">
+          <div className="mt-2 flex flex-col gap-3 rounded-[var(--radius-field)] bg-canvas p-4">
             <div className="flex flex-col gap-1.5 text-sm">
               <span className="caption">Pokaż</span>
               <div className="flex flex-wrap gap-2">
@@ -113,7 +113,7 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
                 <Link
                   key={key}
                   href={qs({ f: key === "active" ? undefined : key })}
-                  className={`rounded-full px-3 py-1 font-medium ${key === f ? "bg-ink text-paper" : "bg-canvas text-ink hover:bg-hairline"}`}
+                  className={`rounded-full px-3 py-1 font-medium ${key === f ? "bg-ink text-paper" : "bg-paper text-ink shadow-hairline hover:bg-surface-alt"}`}
                 >
                   {v.label}
                 </Link>
@@ -127,7 +127,7 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
                 <Link
                   key={key}
                   href={qs({ s: key === "next" ? undefined : key })}
-                  className={`rounded-full px-3 py-1 font-medium ${key === sort ? "bg-ink text-paper" : "bg-canvas text-ink hover:bg-hairline"}`}
+                  className={`rounded-full px-3 py-1 font-medium ${key === sort ? "bg-ink text-paper" : "bg-paper text-ink shadow-hairline hover:bg-surface-alt"}`}
                 >
                   {v.label}
                 </Link>
@@ -147,12 +147,12 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
         </Empty>
       ) : (
         <>
-          <ul className="card divide-y divide-hairline overflow-hidden">
+          <ul className="divide-y divide-hairline border-y border-hairline">
             {list.map((s, i) => (
               <li key={s.id} className="rise" style={{ "--i": i } as React.CSSProperties}>
                 <Link
                   href={`/subscriptions/${s.id}`}
-                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-alt active:bg-canvas"
+                  className="-mx-3 flex items-center gap-3 rounded-[var(--radius-field)] px-3 py-3 transition-colors hover:bg-surface-alt active:bg-canvas"
                 >
                   <span className="relative shrink-0">
                     <Avatar name={s.name} color={s.color} logo={s.logo} />

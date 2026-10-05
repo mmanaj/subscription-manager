@@ -16,10 +16,10 @@ export default async function SettingsPage() {
   const icsUrl = token ? `${proto}://${host}/api/calendar/${token}` : null;
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex max-w-2xl flex-col gap-8">
       <PageHeader title="Więcej" />
 
-      <Link href="/settings/categories" className="card flex items-center justify-between px-5 py-4 transition hover:bg-surface-alt">
+      <Link href="/settings/categories" className="-mx-3 flex items-center justify-between rounded-[var(--radius-field)] border-y border-hairline px-3 py-4 transition hover:bg-surface-alt">
         <span>
           <span className="block font-medium text-ink">Kategorie</span>
           <span className="block text-sm text-muted">Zmień nazwę lub usuń</span>
@@ -27,7 +27,7 @@ export default async function SettingsPage() {
         <ChevronRight className="text-ink" />
       </Link>
 
-      <section className="card flex flex-col gap-3 p-5">
+      <section className="flex flex-col gap-3">
         <h2 className="heading text-lg">Przypomnienia w kalendarzu</h2>
         <p className="text-muted">
           Subskrybuj ten adres w Kalendarzu Apple / Google. Każda płatność pojawi się jako wydarzenie z przypomnieniem dzień
@@ -47,7 +47,7 @@ export default async function SettingsPage() {
         )}
       </section>
 
-      <section className="card flex flex-col gap-3 p-5">
+      <section className="flex flex-col gap-3 border-t border-hairline pt-6">
         <h2 className="heading text-lg">Kopia danych</h2>
         <p className="text-muted">Wszystkie subskrypcje i karty jako JSON.</p>
         <a href="/api/export" className={`${btn.outline} self-start`}>

@@ -52,7 +52,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
   );
 
   return (
-    <div className="card p-4 sm:p-5">
+    <div>
       <div className="mb-3 flex items-center justify-between gap-2">
         <button
           type="button"

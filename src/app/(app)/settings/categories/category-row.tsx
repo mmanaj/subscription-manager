@@ -28,7 +28,7 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
   }
 
   return (
-    <li className={`flex items-center gap-2 py-1 pl-4 pr-1 ${pending ? "opacity-50" : ""}`}>
+    <li className={`flex items-center gap-2 py-1 pr-0 ${pending ? "opacity-50" : ""}`}>
       <span className="min-w-0 flex-1 truncate font-medium text-ink">{name}</span>
       <span className="shrink-0 text-sm text-muted">{count || "—"}</span>
       <button

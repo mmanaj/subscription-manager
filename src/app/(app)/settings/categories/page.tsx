@@ -13,7 +13,7 @@ export default async function CategoriesPage() {
       <p className="mb-6 text-sm text-muted">
         Nowe dodajesz przy subskrypcji przyciskiem „+ Nowa”. Zmiana nazwy na już istniejącą połączy obie kategorie.
       </p>
-      <ul className="card divide-y divide-hairline overflow-hidden">
+      <ul className="divide-y divide-hairline border-y border-hairline">
         {names.map((n) => (
           <CategoryRow key={n} name={n} count={usage.get(n) ?? 0} />
         ))}

@@ -28,7 +28,7 @@
     font-feature-settings: "ss01", "cv11";
   }
   body {
-    @apply bg-canvas text-ink-soft antialiased;
+    @apply bg-paper text-ink-soft antialiased;
     font-size: 14px;
     line-height: 1.43;
   }
@@ -57,11 +57,11 @@
   }
 }
 
-/* White card on the canvas: 24px radius, hairline edge, whisper of elevation. */
-@utility card {
-  background: var(--color-paper);
-  border-radius: var(--radius-large);
-  box-shadow: var(--shadow-card);
+/* Flat tinted panel for small grouped info (no elevation — content sits on the page). */
+@utility panel {
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-hairline);
 }
 
 @utility display {

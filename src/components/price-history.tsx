@@ -47,7 +47,7 @@ export function PriceHistory({
   const rows = [...events].reverse();
 
   return (
-    <section className="card p-5">
+    <section className="border-t border-hairline pt-6">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="heading text-lg">Historia ceny</h2>
         <button

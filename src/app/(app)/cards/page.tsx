@@ -39,7 +39,7 @@ export default async function CardsPage() {
           </Link>
         </Empty>
       ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-x-12">
           {sorted.map((c, i) => {
             const on = live.filter((s) => s.cardId === c.id).sort((a, b) => (a.next ?? "9").localeCompare(b.next ?? "9"));
             const exp = cardExpiry(c);
@@ -47,8 +47,8 @@ export default async function CardsPage() {
             const beforeNext = !!exp && !expired && on.some((s) => s.next && s.next > exp);
             const expiry = c.expMonth && c.expYear ? `${String(c.expMonth).padStart(2, "0")}/${String(c.expYear).slice(-2)}` : null;
             return (
-              <section key={c.id} className="rise card overflow-hidden" style={{ "--i": i } as React.CSSProperties}>
-                <header className="flex items-center gap-3 p-4 sm:p-5">
+              <section key={c.id} className="rise" style={{ "--i": i } as React.CSSProperties}>
+                <header className="flex items-center gap-3 pb-3">
                   <CardThumb color={c.color} brand={c.brand} width={56} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -69,10 +69,10 @@ export default async function CardsPage() {
                 </header>
 
                 {on.length ? <SubList subs={on} today={today} /> : (
-                  <p className="border-t border-hairline px-5 py-4 text-sm text-muted">Nic nie schodzi z tej karty.</p>
+                  <p className="border-t border-hairline py-4 text-sm text-muted">Nic nie schodzi z tej karty.</p>
                 )}
 
-                <footer className="flex items-center justify-between border-t border-hairline bg-surface-alt px-5 py-3 text-sm">
+                <footer className="flex items-center justify-between border-t border-hairline py-3 text-sm">
                   <span className="text-muted">
                     {on.length} {plural(on.length, ["subskrypcja", "subskrypcje", "subskrypcji"])}
                   </span>
@@ -86,8 +86,8 @@ export default async function CardsPage() {
           })}
 
           {unassigned.length > 0 && (
-            <section className="rise card overflow-hidden" style={{ "--i": sorted.length } as React.CSSProperties}>
-              <header className="p-4 sm:p-5">
+            <section className="rise" style={{ "--i": sorted.length } as React.CSSProperties}>
+              <header className="pb-3">
                 <h2 className="font-medium text-ink">Bez karty</h2>
                 <p className="text-sm text-muted">Przypisz kartę, żeby wiedzieć, co z czego schodzi.</p>
               </header>
@@ -105,7 +105,7 @@ function SubList({ subs, today }: { subs: EnrichedSub[]; today: string }) {
     <ul className="divide-y divide-hairline border-t border-hairline">
       {subs.map((s) => (
         <li key={s.id}>
-          <Link href={`/subscriptions/${s.id}`} className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-alt sm:px-5">
+          <Link href={`/subscriptions/${s.id}`} className="-mx-3 flex items-center gap-3 rounded-[var(--radius-field)] px-3 py-2.5 transition-colors hover:bg-surface-alt">
             <span className="relative shrink-0">
               <Avatar name={s.name} color={s.color} logo={s.logo} size={32} />
               <ScopeBadge scope={s.scope} size={14} />

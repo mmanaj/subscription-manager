@@ -40,12 +40,12 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
   );
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6">
+    <div className="flex flex-col gap-8">
       <Link href="/subscriptions" className="text-sm text-muted hover:text-ink">
         ← Subskrypcje
       </Link>
 
-      <header className="rise card flex flex-col gap-5 p-5 sm:p-6">
+      <header className="rise flex flex-col gap-5">
         <div className="flex items-center gap-4">
           <LogoSheet
             id={s.id}
@@ -73,7 +73,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
           </p>
         </div>
         {s.next && (
-          <div className="flex flex-col gap-1 rounded-[var(--radius-field)] bg-surface-alt p-4 shadow-hairline">
+          <div className="panel flex flex-col gap-1 p-4">
             <span className="caption">Następna płatność</span>
             <span className="text-xl font-semibold tracking-tight text-ink">{relative(s.next, today)}</span>
             <span className="text-muted">
@@ -87,8 +87,8 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
         )}
       </header>
 
-      <div className="rise grid items-start gap-4 sm:gap-6 md:grid-cols-2" style={{ "--i": 2 } as React.CSSProperties}>
-        <dl className="card divide-y divide-hairline overflow-hidden">
+      <div className="rise grid items-start gap-8 md:grid-cols-2 md:gap-12" style={{ "--i": 2 } as React.CSSProperties}>
+        <dl className="divide-y divide-hairline border-y border-hairline">
           {s.startDate && <Row label="Od">{dateLong(s.startDate)}</Row>}
           <Row label="Do">{s.endDate ? dateLong(s.endDate) : "bezterminowo"}</Row>
           {s.trialEndDate && <Row label="Okres próbny do">{dateLong(s.trialEndDate)}</Row>}
@@ -104,7 +104,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
 
         <div className="flex flex-col gap-6">
           {upcoming.length > 0 && (
-            <div className="card p-5">
+            <div>
               <h2 className="heading mb-2 text-lg">Kolejne płatności</h2>
               <ul className="flex flex-col divide-y divide-hairline">
                 {upcoming.map((d) => (
@@ -120,7 +120,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
             </div>
           )}
           {s.notes && (
-            <div className="card p-5">
+            <div>
               <h2 className="heading mb-2 text-lg">Notatki</h2>
               <p className="whitespace-pre-wrap text-ink-soft">{s.notes}</p>
             </div>
@@ -179,7 +179,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+    <div className="flex items-baseline justify-between gap-4 py-3">
       <dt className="text-sm text-muted">{label}</dt>
       <dd className="tabular text-right font-medium text-ink">{children}</dd>
     </div>

@@ -37,8 +37,8 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
   }
 
   return (
-    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="card flex max-w-xl flex-col gap-6 p-5 sm:p-6">
-      <div className="flex items-center gap-4 rounded-[var(--radius-field)] bg-surface-alt p-4 shadow-hairline">
+    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-xl flex-col gap-6">
+      <div className="flex items-center gap-4 panel p-4">
         <CardThumb color={color} brand={brand || null} last4={last4} width={128} />
         <div className="min-w-0">
           <div className="truncate font-medium text-ink">{name || "Nowa karta"}</div>

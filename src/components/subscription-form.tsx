@@ -52,7 +52,7 @@ export function SubscriptionForm({
   const custom = !PRESETS.some(presetActive);
 
   return (
-    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="card flex max-w-2xl flex-col gap-6 p-5 sm:p-6">
+    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-2xl flex-col gap-6">
       <div className="flex items-center gap-4">
         <Avatar name={name || "?"} color={color} size={56} />
         <Field label="Nazwa" error={e.name} className="flex-1">
