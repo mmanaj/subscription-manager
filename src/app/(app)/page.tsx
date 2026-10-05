@@ -89,14 +89,14 @@ export default async function Dashboard(props: PageProps<"/">) {
               </>
             );
             return a.href ? (
-              <Link
-                key={i}
-                href={a.href}
-                style={{ "--i": i + 1 } as React.CSSProperties}
-                className="rise press -mx-3 flex items-center gap-3 rounded-[var(--radius-field)] px-3 py-3 hover:bg-surface-alt"
-              >
-                {body}
-              </Link>
+              <div key={i} className="rise" style={{ "--i": i + 1 } as React.CSSProperties}>
+                <Link
+                  href={a.href}
+                  className="-mx-3 flex items-center gap-3 rounded-[var(--radius-field)] px-3 py-3 transition-colors hover:bg-surface-alt active:bg-canvas"
+                >
+                  {body}
+                </Link>
+              </div>
             ) : (
               <div key={i} style={{ "--i": i + 1 } as React.CSSProperties} className="rise flex items-center gap-3 py-3">
                 {body}
@@ -120,11 +120,13 @@ export default async function Dashboard(props: PageProps<"/">) {
             Najbliższe 30 dni
           </SectionTitle>
           {st.next30.length ? (
-            <div className="divide-y divide-hairline">
+            <ul className="divide-y divide-hairline border-y border-hairline">
               {st.next30.map((p, i) => (
-                <PaymentRow key={`${p.sub.id}-${p.date}`} p={p} today={data.today} index={i + 2} />
+                <li key={`${p.sub.id}-${p.date}`} className="rise" style={{ "--i": i + 2 } as React.CSSProperties}>
+                  <PaymentRow p={p} today={data.today} />
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
             <p className="py-6 text-center text-muted">Spokój. Nic nie schodzi w ciągu 30 dni.</p>
           )}

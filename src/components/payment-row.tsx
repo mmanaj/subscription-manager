@@ -5,13 +5,12 @@ import { cycleLabel } from "@/lib/billing";
 import { ScopeBadge } from "./scope";
 import { Avatar } from "./ui";
 
-export function PaymentRow({ p, today, index = 0 }: { p: Payment; today: string; index?: number }) {
+export function PaymentRow({ p, today }: { p: Payment; today: string }) {
   const s = p.sub;
   return (
     <Link
       href={`/subscriptions/${s.id}`}
-      style={{ "--i": index } as React.CSSProperties}
-      className="rise press -mx-2 flex items-center gap-3 rounded-[var(--radius-field)] px-2 py-3 hover:bg-canvas active:bg-canvas"
+      className="-mx-3 flex items-center gap-3 rounded-[var(--radius-field)] px-3 py-3 transition-colors hover:bg-surface-alt active:bg-canvas"
     >
       <div className="w-12 shrink-0 text-center">
         <div className="text-lg font-semibold leading-none tracking-tight text-ink">{dateShort(p.date).split(" ")[0]}</div>
