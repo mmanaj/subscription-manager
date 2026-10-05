@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { headers } from "next/headers";
+import { ChevronRight } from "lucide-react";
 import { logout } from "@/app/actions";
 import { PageHeader, btn } from "@/components/ui";
 import { CopyField } from "./copy-field";
@@ -16,6 +18,14 @@ export default async function SettingsPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-10">
       <PageHeader title="Więcej" />
+
+      <Link href="/settings/categories" className="flex items-center justify-between rounded-card bg-fog px-4 py-4 transition hover:bg-mist">
+        <span>
+          <span className="block font-semibold text-obsidian">Kategorie</span>
+          <span className="block text-sm text-slate">Zmień nazwę lub usuń</span>
+        </span>
+        <ChevronRight className="text-forest" />
+      </Link>
 
       <section className="flex flex-col gap-3">
         <h2 className="heading text-2xl">Przypomnienia w kalendarzu</h2>

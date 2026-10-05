@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -114,6 +114,32 @@ export async function addCategory(raw: string): Promise<{ name?: string; error?:
   if (name.length > 40) return { error: "Max 40 znaków" };
   await db.insert(categories).values({ name }).onConflictDoNothing();
   return { name };
+}
+
+/** Renames everywhere; renaming onto an existing category merges the two. */
+export async function renameCategory(from: string, raw: string): Promise<{ error?: string }> {
+  await requireAuth();
+  const to = raw.trim().replace(/\s+/g, " ");
+  if (!to) return { error: "Wpisz nazwę" };
+  if (to.length > 40) return { error: "Max 40 znaków" };
+  if (to === from) return {};
+  await db.transaction(async (tx) => {
+    await tx.insert(categories).values({ name: to }).onConflictDoNothing();
+    await tx.update(subscriptions).set({ category: to }).where(sql`trim(${subscriptions.category}) = ${from}`);
+    await tx.delete(categories).where(eq(categories.name, from));
+  });
+  refreshAll();
+  return {};
+}
+
+/** Deletes a category; subscriptions in it become uncategorised. */
+export async function deleteCategory(name: string) {
+  await requireAuth();
+  await db.transaction(async (tx) => {
+    await tx.update(subscriptions).set({ category: null }).where(sql`trim(${subscriptions.category}) = ${name}`);
+    await tx.delete(categories).where(eq(categories.name, name));
+  });
+  refreshAll();
 }
 
 const cardSchema = z.object({
