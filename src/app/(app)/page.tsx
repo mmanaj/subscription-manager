@@ -142,7 +142,11 @@ export default async function Dashboard(props: PageProps<"/">) {
           )}
           <div>
             <SectionTitle>Na co idzie</SectionTitle>
-            <Bars data={st.byCategory} total={st.monthly} />
+            <Bars
+              data={st.byCategory}
+              total={st.monthly}
+              href={(c) => `/subscriptions?${new URLSearchParams({ kat: c, ...(scope ? { typ: scope } : {}) })}`}
+            />
           </div>
           <div>
             <SectionTitle>Z jakiej karty</SectionTitle>
