@@ -1,11 +1,19 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import type { Card, IntervalUnit, Subscription } from "@/db/schema";
+import type { Card, IntervalUnit, Subscription, SubscriptionScope } from "@/db/schema";
 import type { FormState } from "@/app/actions";
 import { Avatar } from "./ui";
 import { CategoryPicker } from "./category-picker";
 import { ColorPicker, Field, inputCls, Submit, submitWithoutReset } from "./form-bits";
+
+const SCOPE_OPTIONS: { value: SubscriptionScope; label: string; hint: string }[] = [
+  { value: "personal", label: "Prywatna", hint: "Płacę tylko za siebie" },
+  { value: "shared", label: "Wspólna", hint: "Rodzinna / dzielona z kimś" },
+  { value: "business", label: "Firmowa", hint: "Koszt firmy" },
+];
+
+const toNum = (v: string) => Number(v.replace(/\s/g, "").replace(",", "."));
 
 const PRESETS: { label: string; count: number; unit: IntervalUnit }[] = [
   { label: "Miesięcznie", count: 1, unit: "month" },
@@ -32,8 +40,13 @@ export function SubscriptionForm({
   const [color, setColor] = useState(sub?.color ?? "forest");
   const [count, setCount] = useState(sub?.intervalCount ?? 1);
   const [unit, setUnit] = useState<IntervalUnit>(sub?.intervalUnit ?? "month");
+  const [scope, setScope] = useState<SubscriptionScope>(sub?.scope ?? "personal");
+  const initialAmount = sub ? String(sub.amount).replace(".", ",") : "";
+  const [amount, setAmount] = useState(initialAmount);
+  const [priceMode, setPriceMode] = useState<"change" | "fix">("change");
+  const priceChanged = !!sub && amount.trim() !== "" && toNum(amount) !== Number(sub.amount);
   const [more, setMore] = useState(
-    !!(sub?.trialEndDate || sub?.endDate || (sub?.splitWith ?? 1) > 1 || sub?.url || sub?.notes),
+    !!(sub?.trialEndDate || sub?.endDate || sub?.url || sub?.notes),
   );
   const presetActive = (p: (typeof PRESETS)[number]) => p.count === count && p.unit === unit;
   const custom = !PRESETS.some(presetActive);
@@ -63,7 +76,8 @@ export function SubscriptionForm({
             required
             inputMode="decimal"
             placeholder="49,99"
-            defaultValue={sub ? String(sub.amount).replace(".", ",") : ""}
+            value={amount}
+            onChange={(ev) => setAmount(ev.target.value)}
             aria-invalid={!!e.amount}
             className={`${inputCls} tabular text-lg font-semibold`}
           />
@@ -76,6 +90,66 @@ export function SubscriptionForm({
           </select>
         </Field>
       </div>
+
+      {priceChanged && (
+        <div className="-mt-3 flex flex-col gap-3 rounded-card bg-mist p-4">
+          <input type="hidden" name="priceMode" value={priceMode} />
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["change", "Cena się zmieniła"],
+                ["fix", "Poprawiam błąd"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setPriceMode(v)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  priceMode === v ? "bg-forest text-paper" : "bg-paper text-forest"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {priceMode === "change" ? (
+            <Field label="Nowa cena obowiązuje od" hint="Stara cena zostanie w historii. Może być data w przyszłości.">
+              <input name="priceFrom" type="date" defaultValue={new Intl.DateTimeFormat("en-CA").format(new Date())} className={inputCls} />
+            </Field>
+          ) : (
+            <p className="text-sm text-forest">Kwota zostanie nadpisana bez wpisu w historii cen.</p>
+          )}
+        </div>
+      )}
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-sm font-semibold text-obsidian">Czyja</legend>
+        <input type="hidden" name="scope" value={scope} />
+        <div className="grid grid-cols-3 gap-2">
+          {SCOPE_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={scope === o.value}
+              onClick={() => setScope(o.value)}
+              className={`flex flex-col items-start rounded-card px-3 py-2.5 text-left transition ${
+                scope === o.value ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"
+              }`}
+            >
+              <span className="text-sm font-semibold">{o.label}</span>
+              <span className="text-[11px] leading-tight opacity-75">{o.hint}</span>
+            </button>
+          ))}
+        </div>
+        {scope === "shared" ? (
+          <Field label="Dzielę koszt na (osób)" hint="Np. plan rodzinny na 4 — do sum liczy się 1/4 kwoty" error={e.splitWith} className="mt-2">
+            <input name="splitWith" type="number" min={1} max={20} inputMode="numeric" defaultValue={sub?.splitWith ?? 1} className={`${inputCls} w-24`} />
+          </Field>
+        ) : (
+          <input type="hidden" name="splitWith" value="1" />
+        )}
+      </fieldset>
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-sm font-semibold text-obsidian">Odnawia się</legend>
@@ -153,7 +227,7 @@ export function SubscriptionForm({
       </Field>
 
       <button type="button" onClick={() => setMore((m) => !m)} className="self-start text-sm font-semibold text-forest underline decoration-2 underline-offset-4 hover:decoration-lime">
-        {more ? "Mniej opcji" : "Więcej opcji: koniec, okres próbny, podział kosztu…"}
+        {more ? "Mniej opcji" : "Więcej opcji: koniec, okres próbny, link, notatki…"}
       </button>
 
       <div className={more ? "flex flex-col gap-6" : "hidden"}>
@@ -165,9 +239,6 @@ export function SubscriptionForm({
             <input name="trialEndDate" type="date" defaultValue={sub?.trialEndDate ?? ""} className={inputCls} />
           </Field>
         </div>
-        <Field label="Dzielę koszt na (osób)" hint="Np. plan rodzinny na 4 — liczy się 1/4 kwoty" error={e.splitWith}>
-          <input name="splitWith" type="number" min={1} max={20} inputMode="numeric" defaultValue={sub?.splitWith ?? 1} className={`${inputCls} w-24`} />
-        </Field>
         <Field label="Link do zarządzania / anulowania" error={e.url}>
           <input name="url" type="url" inputMode="url" placeholder="https://" defaultValue={sub?.url ?? ""} className={inputCls} aria-invalid={!!e.url} />
         </Field>

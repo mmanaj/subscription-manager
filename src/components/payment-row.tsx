@@ -20,7 +20,7 @@ export function PaymentRow({ p, today }: { p: Payment; today: string }) {
         </div>
       </div>
       <div className="text-right">
-        <div className="tabular font-semibold text-obsidian">{money(s.myAmount, s.currency)}</div>
+        <div className="tabular font-semibold text-obsidian">{money(p.amount, s.currency)}</div>
         {s.currency !== "PLN" && <div className="tabular text-xs text-pebble">≈ {money(p.pln)}</div>}
       </div>
     </Link>

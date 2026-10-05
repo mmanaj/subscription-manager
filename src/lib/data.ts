@@ -1,17 +1,25 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { cards, subscriptions, type Card, type Subscription } from "@/db/schema";
+import { cards, priceChanges, subscriptions, type Card, type SubscriptionScope, type Subscription } from "@/db/schema";
 import { chargesBetween, cycleLabel, inTrial, isLive, monthlyFactor, nextCharge } from "./billing";
 import { addDays, addMonths, endOfMonth, startOfMonth, today as todayFn, type ISODate } from "./dates";
 import { getRates, toPLN, type Rates } from "./fx";
 import { dateShort, money } from "./format";
+import { amountOn, type PriceEvent } from "./price";
 
 export type EnrichedSub = Subscription & {
   card: Card | null;
+  /** Full price in force today, original currency */
   amountNum: number;
-  /** My share (amount / splitWith), original currency */
+  /** My share of today's price (amount / splitWith), original currency */
   myAmount: number;
+  /** Price history, oldest first */
+  priceEvents: (PriceEvent & { id: number })[];
+  /** My share on a given day, original currency */
+  myAmountOn: (date: ISODate) => number;
+  /** My share on a given day, PLN */
+  plnOn: (date: ISODate) => number;
   /** My share converted to PLN, per charge */
   chargePLN: number;
   /** Average monthly cost in PLN (my share); 0 when not live */
@@ -35,9 +43,18 @@ export async function getRawSubscription(id: number): Promise<Subscription | nul
   return s ?? null;
 }
 
-function enrich(s: Subscription, cardList: Card[], rates: Rates, today: ISODate): EnrichedSub {
-  const amountNum = Number(s.amount);
-  const myAmount = amountNum / Math.max(1, s.splitWith);
+function enrich(
+  s: Subscription,
+  cardList: Card[],
+  rates: Rates,
+  today: ISODate,
+  priceEvents: (PriceEvent & { id: number })[],
+): EnrichedSub {
+  const split = Math.max(1, s.splitWith);
+  const myAmountOn = (d: ISODate) => amountOn(Number(s.amount), priceEvents, d) / split;
+  const plnOn = (d: ISODate) => toPLN(myAmountOn(d), s.currency, rates);
+  const amountNum = amountOn(Number(s.amount), priceEvents, today);
+  const myAmount = amountNum / split;
   const chargePLN = toPLN(myAmount, s.currency, rates);
   const live = isLive(s, today);
   return {
@@ -45,6 +62,9 @@ function enrich(s: Subscription, cardList: Card[], rates: Rates, today: ISODate)
     card: cardList.find((c) => c.id === s.cardId) ?? null,
     amountNum,
     myAmount,
+    priceEvents,
+    myAmountOn,
+    plnOn,
     chargePLN,
     monthlyPLN: live ? chargePLN * monthlyFactor(s.intervalUnit, s.intervalCount) : 0,
     next: live ? nextCharge(s, today) : null,
@@ -55,12 +75,17 @@ function enrich(s: Subscription, cardList: Card[], rates: Rates, today: ISODate)
 
 export async function loadAll() {
   const today = todayFn();
-  const [subs, cardList, rates] = await Promise.all([
+  const [subs, cardList, rates, changes] = await Promise.all([
     db.select().from(subscriptions).orderBy(asc(subscriptions.name)),
     listCards(),
     getRates(),
+    db.select().from(priceChanges).orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id)),
   ]);
-  return { today, rates, cards: cardList, subs: subs.map((s) => enrich(s, cardList, rates, today)) };
+  const eventsFor = (id: number) =>
+    changes
+      .filter((c) => c.subscriptionId === id)
+      .map((c) => ({ id: c.id, effectiveDate: c.effectiveDate, oldAmount: Number(c.oldAmount), newAmount: Number(c.newAmount) }));
+  return { today, rates, cards: cardList, subs: subs.map((s) => enrich(s, cardList, rates, today, eventsFor(s.id))) };
 }
 
 export async function loadOne(id: number) {
@@ -68,11 +93,12 @@ export async function loadOne(id: number) {
   return { today, rates, cards: cardList, sub: subs.find((s) => s.id === id) ?? null };
 }
 
-export type Payment = { sub: EnrichedSub; date: ISODate; pln: number };
+/** amount = my share in the subscription's currency, pln = same in PLN — both at that day's price */
+export type Payment = { sub: EnrichedSub; date: ISODate; amount: number; pln: number };
 
 export function paymentsBetween(subs: EnrichedSub[], from: ISODate, to: ISODate): Payment[] {
   return subs
-    .flatMap((sub) => chargesBetween(sub, from, to, sub.status === "cancelled" && !!sub.endDate).map((date) => ({ sub, date, pln: sub.chargePLN })))
+    .flatMap((sub) => chargesBetween(sub, from, to, sub.status === "cancelled" && !!sub.endDate).map((date) => ({ sub, date, amount: sub.myAmountOn(date), pln: sub.plnOn(date) })))
     .sort((a, b) => a.date.localeCompare(b.date) || b.pln - a.pln);
 }
 
@@ -86,10 +112,22 @@ export function cardExpiry(c: Card): ISODate | null {
   return endOfMonth(`${c.expYear}-${String(c.expMonth).padStart(2, "0")}-01`);
 }
 
-export type Alert = { kind: "trial" | "card" | "ending" | "fx"; title: string; detail: string; href?: string };
+export type Alert = { kind: "trial" | "card" | "ending" | "fx" | "price"; title: string; detail: string; href?: string };
 
-export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>) {
-  const { subs, today, cards: cardList, rates } = data;
+export const SCOPES: Record<SubscriptionScope, { label: string; plural: string }> = {
+  personal: { label: "Prywatna", plural: "Prywatne" },
+  shared: { label: "Wspólna", plural: "Wspólne" },
+  business: { label: "Firmowa", plural: "Firmowe" },
+};
+
+export function isScope(v: unknown): v is SubscriptionScope {
+  return typeof v === "string" && v in SCOPES;
+}
+
+export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?: SubscriptionScope) {
+  const { today, rates } = data;
+  const subs = scope ? data.subs.filter((s) => s.scope === scope) : data.subs;
+  const cardList = scope ? data.cards.filter((c) => subs.some((s) => s.cardId === c.id)) : data.cards;
   const live = subs.filter((s) => s.live);
   const monthly = sum(live.map((s) => s.monthlyPLN));
 
@@ -109,6 +147,7 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>) {
   };
   const byCategory = group((s) => s.category?.trim() || "Bez kategorii");
   const byCard = group((s) => (s.card ? s.card.name + (s.card.last4 ? ` ••${s.card.last4}` : "") : "Bez karty"));
+  const byScope = group((s) => SCOPES[s.scope].plural);
 
   const alerts: Alert[] = [];
   for (const s of live) {
@@ -119,6 +158,17 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>) {
         detail: `${dateShort(s.trialEndDate)} — potem ${money(s.myAmount, s.currency)} ${cycleLabel(s.intervalUnit, s.intervalCount)}`,
         href: `/subscriptions/${s.id}`,
       });
+    }
+    for (const e of s.priceEvents) {
+      if (e.effectiveDate >= today && e.effectiveDate <= addDays(today, 30)) {
+        const split = Math.max(1, s.splitWith);
+        alerts.push({
+          kind: "price",
+          title: `${e.newAmount > e.oldAmount ? "Podwyżka" : "Zmiana ceny"}: ${s.name}`,
+          detail: `Od ${dateShort(e.effectiveDate)}: ${money(e.oldAmount / split, s.currency)} → ${money(e.newAmount / split, s.currency)}`,
+          href: `/subscriptions/${s.id}`,
+        });
+      }
     }
     if (s.endDate && s.endDate <= addDays(today, 30)) {
       alerts.push({ kind: "ending", title: `Kończy się: ${s.name}`, detail: `Koniec: ${dateShort(s.endDate)}`, href: `/subscriptions/${s.id}` });
@@ -153,6 +203,7 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>) {
     next30,
     byCategory,
     byCard,
+    byScope,
     alerts,
     liveCount: live.length,
     trialCount: live.filter((s) => s.trial).length,

@@ -1,16 +1,17 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { cards, categories, subscriptions } from "@/db/schema";
+import { cards, categories, priceChanges, subscriptions } from "@/db/schema";
 import { endSession, passwordMatches, requireAuth, startSession } from "@/lib/auth";
 import { nextCharge } from "@/lib/billing";
-import { today } from "@/lib/dates";
+import { addDays, today } from "@/lib/dates";
+import { amountOn } from "@/lib/price";
 
-export type FormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+export type FormState = { ok?: boolean; error?: string; fieldErrors?: Record<string, string> } | undefined;
 
 const optStr = z
   .string()
@@ -37,6 +38,9 @@ const subscriptionSchema = z
     trialEndDate: optDate,
     endDate: optDate,
     status: z.enum(["active", "paused", "cancelled"]),
+    scope: z.enum(["personal", "shared", "business"]).default("personal"),
+    priceMode: z.enum(["change", "fix"]).default("change"),
+    priceFrom: optDate,
     cardId: optStr.transform((v) => (v ? Number(v) : null)),
     category: optStr,
     splitWith: z.coerce.number().int().min(1).max(20),
@@ -66,16 +70,112 @@ export async function saveSubscription(id: number | null, _prev: FormState, form
   await requireAuth();
   const parsed = parseForm(subscriptionSchema, formData);
   if (!parsed.data) return parsed.state;
-  const values = { ...parsed.data, updatedAt: new Date() };
+  const { priceMode, priceFrom, ...fields } = parsed.data;
+  const values = { ...fields, splitWith: fields.scope === "shared" ? fields.splitWith : 1, updatedAt: new Date() };
   let savedId = id;
   if (id) {
-    await db.update(subscriptions).set(values).where(eq(subscriptions.id, id));
+    const [prev] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    const priceChanged = prev && Number(prev.amount) !== Number(values.amount);
+    await db.transaction(async (tx) => {
+      if (priceChanged && priceMode === "change") {
+        const { amount, ...rest } = values;
+        await tx.update(subscriptions).set(rest).where(eq(subscriptions.id, id));
+        await applyPriceChange(tx, id, priceFrom ?? today(), amount);
+      } else {
+        await tx.update(subscriptions).set(values).where(eq(subscriptions.id, id));
+        // A correction rewrites the latest known price rather than adding history.
+        if (priceChanged) {
+          const events = await tx.select().from(priceChanges).where(eq(priceChanges.subscriptionId, id)).orderBy(asc(priceChanges.effectiveDate));
+          const last = events.at(-1);
+          if (last) await tx.update(priceChanges).set({ newAmount: values.amount }).where(eq(priceChanges.id, last.id));
+        }
+      }
+    });
   } else {
     const [row] = await db.insert(subscriptions).values(values).returning({ id: subscriptions.id });
     savedId = row.id;
   }
   refreshAll();
   redirect(`/subscriptions/${savedId}`);
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Keeps the history a consistent chain (each old = previous new) and the subscription at the latest price. */
+async function rechain(tx: Tx, subId: number, fallbackAmount: string) {
+  const events = await tx
+    .select()
+    .from(priceChanges)
+    .where(eq(priceChanges.subscriptionId, subId))
+    .orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id));
+  for (let i = 1; i < events.length; i++) {
+    if (events[i].oldAmount !== events[i - 1].newAmount) {
+      await tx.update(priceChanges).set({ oldAmount: events[i - 1].newAmount }).where(eq(priceChanges.id, events[i].id));
+    }
+  }
+  await tx
+    .update(subscriptions)
+    .set({ amount: events.at(-1)?.newAmount ?? fallbackAmount, updatedAt: new Date() })
+    .where(eq(subscriptions.id, subId));
+}
+
+/** Records "from `date` the price is `newAmount`" — past, current or announced for the future. */
+async function applyPriceChange(tx: Tx, subId: number, date: string, newAmount: string) {
+  const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.id, subId));
+  if (!sub) return;
+  const events = await tx.select().from(priceChanges).where(eq(priceChanges.subscriptionId, subId));
+  const sameDay = events.find((e) => e.effectiveDate === date);
+  if (sameDay) {
+    await tx.update(priceChanges).set({ newAmount }).where(eq(priceChanges.id, sameDay.id));
+  } else {
+    const before = amountOn(
+      Number(sub.amount),
+      events.map((e) => ({ effectiveDate: e.effectiveDate, oldAmount: Number(e.oldAmount), newAmount: Number(e.newAmount) })),
+      addDays(date, -1),
+    );
+    if (before === Number(newAmount)) return;
+    await tx.insert(priceChanges).values({ subscriptionId: subId, effectiveDate: date, oldAmount: before.toFixed(2), newAmount });
+  }
+  await rechain(tx, subId, sub.amount);
+}
+
+const priceChangeSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Podaj datę"),
+  amount: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s/g, "").replace(",", "."))
+    .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), "Podaj kwotę, np. 49,99"),
+});
+
+export async function addPriceChange(subId: number, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAuth();
+  const parsed = parseForm(priceChangeSchema, formData);
+  if (!parsed.data) return parsed.state;
+  await db.transaction((tx) => applyPriceChange(tx, subId, parsed.data.date, parsed.data.amount));
+  refreshAll();
+  return { ok: true };
+}
+
+export async function deletePriceChange(subId: number, changeId: number) {
+  await requireAuth();
+  await db.transaction(async (tx) => {
+    const events = await tx
+      .select()
+      .from(priceChanges)
+      .where(eq(priceChanges.subscriptionId, subId))
+      .orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id));
+    const idx = events.findIndex((e) => e.id === changeId);
+    if (idx < 0) return;
+    const removed = events[idx];
+    // Removing the first change: the next one now starts from the original price.
+    if (idx === 0 && events[1]) {
+      await tx.update(priceChanges).set({ oldAmount: removed.oldAmount }).where(eq(priceChanges.id, events[1].id));
+    }
+    await tx.delete(priceChanges).where(and(eq(priceChanges.id, changeId), eq(priceChanges.subscriptionId, subId)));
+    await rechain(tx, subId, removed.oldAmount);
+  });
+  refreshAll();
 }
 
 export async function deleteSubscription(id: number) {

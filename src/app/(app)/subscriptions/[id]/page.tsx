@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import { ExternalLink, Pencil } from "lucide-react";
 import { cancelSubscription, deleteSubscription, setStatus } from "@/app/actions";
 import { ConfirmButton } from "@/components/confirm-button";
+import { PriceHistory } from "@/components/price-history";
 import { Avatar, BigMoney, btn, Tag } from "@/components/ui";
 import { chargesBetween, cycleLabel, monthlyFactor } from "@/lib/billing";
 import { addDays, addMonths } from "@/lib/dates";
-import { cardExpiry, loadOne } from "@/lib/data";
+import { cardExpiry, loadOne, SCOPES, sum } from "@/lib/data";
 import { dateLong, dateShort, money, relative } from "@/lib/format";
-import { toPLN } from "@/lib/fx";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
 
   const upcoming = s.live ? chargesBetween(s, today, addMonths(today, 24)).slice(0, 6) : [];
   const past = chargesBetween(s, "1970-01-01", addDays(today, -1), true);
-  const paidSoFar = past.length * s.myAmount;
+  const paidSoFar = sum(past.map((d) => s.myAmountOn(d)));
   const cardExp = s.card ? cardExpiry(s.card) : null;
   const perYear = s.myAmount * monthlyFactor(s.intervalUnit, s.intervalCount) * 12;
   const foreign = s.currency !== "PLN";
@@ -50,6 +50,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
             <h1 className="heading truncate text-[40px] sm:text-[61px]">{s.name}</h1>
             <div className="mt-1 flex flex-wrap gap-2">
               {status}
+              {s.scope !== "personal" && <Tag tone="fog">{SCOPES[s.scope].label.toLowerCase()}</Tag>}
               {s.category && <Tag tone="fog">{s.category}</Tag>}
             </div>
           </div>
@@ -104,8 +105,8 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
                   <li key={d} className="flex justify-between rounded-card bg-fog px-4 py-2.5 text-sm">
                     <span className="font-semibold text-obsidian">{dateLong(d)}</span>
                     <span className="tabular text-charcoal">
-                      {money(s.myAmount, s.currency)}
-                      {foreign && <span className="text-pebble"> · {money(toPLN(s.myAmount, s.currency, rates))}</span>}
+                      {money(s.myAmountOn(d), s.currency)}
+                      {foreign && <span className="text-pebble"> · {money(s.plnOn(d))}</span>}
                     </span>
                   </li>
                 ))}
@@ -125,6 +126,15 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
           )}
         </div>
       </div>
+
+      <PriceHistory
+        subId={s.id}
+        events={s.priceEvents}
+        currency={s.currency}
+        split={Math.max(1, s.splitWith)}
+        today={today}
+        startDate={s.startDate}
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Link href={`/subscriptions/${s.id}/edit`} className={btn.primary}>

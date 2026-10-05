@@ -1,18 +1,21 @@
 import Link from "next/link";
-import { AlertTriangle, CalendarClock, CreditCard, Hourglass } from "lucide-react";
+import { AlertTriangle, CalendarClock, CreditCard, Hourglass, TrendingUp } from "lucide-react";
 import { Bars } from "@/components/bars";
 import { PaymentRow } from "@/components/payment-row";
-import { BigMoney, btn, Empty, SectionTitle } from "@/components/ui";
-import { dashboardStats, loadAll, sum } from "@/lib/data";
+import { BigMoney, btn, Empty, SectionTitle, Segments } from "@/components/ui";
+import { dashboardStats, isScope, loadAll, SCOPES, sum } from "@/lib/data";
 import { money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-const alertIcon = { trial: Hourglass, card: CreditCard, ending: CalendarClock, fx: AlertTriangle };
+const alertIcon = { trial: Hourglass, card: CreditCard, ending: CalendarClock, fx: AlertTriangle, price: TrendingUp };
 
-export default async function Dashboard() {
+export default async function Dashboard(props: PageProps<"/">) {
+  const { typ } = await props.searchParams;
+  const scope = isScope(typ) ? typ : undefined;
   const data = await loadAll();
-  const st = dashboardStats(data);
+  const st = dashboardStats(data, scope);
+  const scopesInUse = new Set(data.subs.map((s) => s.scope));
 
   if (data.subs.length === 0) {
     return (
@@ -37,20 +40,35 @@ export default async function Dashboard() {
   return (
     <div className="flex flex-col gap-10 sm:gap-16">
       {/* Hero */}
-      <section className="rounded-large bg-forest p-6 text-paper sm:p-10">
-        <p className="text-sm font-semibold text-mist">Płacisz średnio miesięcznie</p>
-        <BigMoney value={st.monthly} className="mt-3 block text-[64px] text-lime sm:text-[105px]" />
-        <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4">
-          <Stat label="Rocznie" value={money(st.yearly, "PLN", { compact: true })} />
-          <Stat label="W tym miesiącu" value={money(st.thisMonthTotal, "PLN", { compact: true })} />
-          <Stat label="Zostało w tym mies." value={money(st.thisMonthLeft, "PLN", { compact: true })} />
-          <Stat
-            label="Aktywne"
-            value={String(st.liveCount)}
-            hint={st.trialCount ? `${st.trialCount} w okresie próbnym` : undefined}
-          />
-        </div>
-      </section>
+      <div className="flex flex-col gap-4">
+        {scopesInUse.size > 1 && (
+          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <Segments
+              active={scope ?? "all"}
+              items={[
+                { key: "all", label: "Wszystkie", href: "/" },
+                ...Object.entries(SCOPES)
+                  .filter(([k]) => scopesInUse.has(k as keyof typeof SCOPES))
+                  .map(([k, v]) => ({ key: k, label: v.plural, href: `/?typ=${k}` })),
+              ]}
+            />
+          </div>
+        )}
+        <section className="rounded-large bg-forest p-6 text-paper sm:p-10">
+          <p className="text-sm font-semibold text-mist">Płacisz średnio miesięcznie</p>
+          <BigMoney value={st.monthly} className="mt-3 block text-[64px] text-lime sm:text-[105px]" />
+          <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4">
+            <Stat label="Rocznie" value={money(st.yearly, "PLN", { compact: true })} />
+            <Stat label="W tym miesiącu" value={money(st.thisMonthTotal, "PLN", { compact: true })} />
+            <Stat label="Zostało w tym mies." value={money(st.thisMonthLeft, "PLN", { compact: true })} />
+            <Stat
+              label="Aktywne"
+              value={String(st.liveCount)}
+              hint={st.trialCount ? `${st.trialCount} w okresie próbnym` : undefined}
+            />
+          </div>
+        </section>
+      </div>
 
       {st.alerts.length > 0 && (
         <section className="flex flex-col gap-2">
@@ -101,6 +119,12 @@ export default async function Dashboard() {
         </section>
 
         <section className="flex min-w-0 flex-col gap-10">
+          {!scope && st.byScope.length > 1 && (
+            <div>
+              <SectionTitle>Czyje</SectionTitle>
+              <Bars data={st.byScope} total={st.monthly} />
+            </div>
+          )}
           <div>
             <SectionTitle>Na co idzie</SectionTitle>
             <Bars data={st.byCategory} total={st.monthly} />

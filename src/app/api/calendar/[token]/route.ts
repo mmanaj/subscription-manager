@@ -36,7 +36,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/calendar/[token
   for (const p of payments) {
     const d = p.date.replace(/-/g, "");
     const end = addDays(p.date, 1).replace(/-/g, "");
-    const amount = `${p.sub.myAmount.toFixed(2)} ${p.sub.currency}`;
+    const amount = `${p.amount.toFixed(2)} ${p.sub.currency}`;
     lines.push(
       "BEGIN:VEVENT",
       `UID:sub-${p.sub.id}-${d}@subs`,

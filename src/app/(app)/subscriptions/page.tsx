@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Avatar, btn, Empty, PageHeader, Segments, Tag } from "@/components/ui";
-import { loadAll, sum, type EnrichedSub } from "@/lib/data";
+import { isScope, loadAll, SCOPES, sum, type EnrichedSub } from "@/lib/data";
 import { cycleLabel } from "@/lib/billing";
 import { dateShort, money, relative } from "@/lib/format";
 
@@ -23,8 +23,13 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
   const sp = await props.searchParams;
   const f = (typeof sp.f === "string" && sp.f in filters ? sp.f : "active") as keyof typeof filters;
   const sort = (typeof sp.s === "string" && sp.s in sorts ? sp.s : "next") as keyof typeof sorts;
+  const typ = isScope(sp.typ) ? sp.typ : undefined;
   const { subs, today } = await loadAll();
-  const list = subs.filter(filters[f].fn).sort(sorts[sort].fn);
+  const list = subs.filter((s) => filters[f].fn(s) && (!typ || s.scope === typ)).sort(sorts[sort].fn);
+  const qs = (patch: Record<string, string | undefined>) => {
+    const q = new URLSearchParams(Object.entries({ f, s: sort, typ, ...patch }).filter(([, v]) => v) as [string, string][]);
+    return `?${q}`;
+  };
   const monthly = sum(list.map((s) => s.monthlyPLN));
 
   return (
@@ -33,20 +38,32 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Segments
           active={f}
-          items={Object.entries(filters).map(([key, v]) => ({ key, label: v.label, href: `?f=${key}&s=${sort}` }))}
+          items={Object.entries(filters).map(([key, v]) => ({ key, label: v.label, href: qs({ f: key }) }))}
         />
         <div className="flex items-center gap-2 text-sm">
           <span className="text-pebble">Sortuj:</span>
           {Object.entries(sorts).map(([key, v]) => (
             <Link
               key={key}
-              href={`?f=${f}&s=${key}`}
+              href={qs({ s: key })}
               className={`rounded-full px-3 py-1 font-semibold ${key === sort ? "bg-forest text-paper" : "text-forest hover:bg-mist"}`}
             >
               {v.label}
             </Link>
           ))}
         </div>
+      </div>
+
+      <div className="-mt-3 mb-6 flex flex-wrap gap-2 text-sm">
+        {[["", "Każdy typ"], ...Object.entries(SCOPES).map(([k, v]) => [k, v.plural])].map(([k, label]) => (
+          <Link
+            key={k || "all"}
+            href={qs({ typ: k || undefined })}
+            className={`rounded-full px-3 py-1 font-semibold ${(typ ?? "") === k ? "bg-forest text-paper" : "text-forest hover:bg-mist"}`}
+          >
+            {label}
+          </Link>
+        ))}
       </div>
 
       {list.length === 0 ? (
@@ -71,7 +88,9 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
                       {s.trial && <Tag>próbny</Tag>}
                       {s.status === "paused" && <Tag tone="fog">wstrzymana</Tag>}
                       {s.status === "cancelled" && <Tag tone="fog">anulowana</Tag>}
-                      {s.splitWith > 1 && <Tag tone="fog">÷{s.splitWith}</Tag>}
+                      {s.scope === "shared" && <Tag tone="fog">wspólna{s.splitWith > 1 ? ` ÷${s.splitWith}` : ""}</Tag>}
+                      {s.scope === "business" && <Tag tone="fog">firmowa</Tag>}
+                      {s.scope === "personal" && s.splitWith > 1 && <Tag tone="fog">÷{s.splitWith}</Tag>}
                     </div>
                     <div className="truncate text-sm text-slate">
                       {cycleLabel(s.intervalUnit, s.intervalCount)}

@@ -15,6 +15,13 @@
       "when": 1791184343679,
       "tag": "0001_categories_optional_start",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791185702365,
+      "tag": "0002_scope_price_history",
+      "breakpoints": true
     }
   ]
 }
