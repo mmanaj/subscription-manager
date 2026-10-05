@@ -28,8 +28,9 @@ export function Field({
   );
 }
 
-export function Submit({ children }: { children: React.ReactNode }) {
-  const { pending } = useFormStatus();
+export function Submit({ children, pending: pendingProp }: { children: React.ReactNode; pending?: boolean }) {
+  const status = useFormStatus();
+  const pending = pendingProp ?? status.pending;
   return (
     <button
       type="submit"
@@ -62,4 +63,16 @@ export function ColorPicker({ name, value, onChange }: { name: string; value: st
       ))}
     </div>
   );
+}
+
+/**
+ * Submit handler that runs a form action without React's automatic form reset, so a validation
+ * error doesn't wipe what was typed.
+ */
+export function submitWithoutReset(dispatch: (fd: FormData) => void, startTransition: (fn: () => void) => void) {
+  return (ev: React.FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    const fd = new FormData(ev.currentTarget);
+    startTransition(() => dispatch(fd));
+  };
 }

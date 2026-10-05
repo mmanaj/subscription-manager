@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import type { Card, IntervalUnit, Subscription } from "@/db/schema";
 import type { FormState } from "@/app/actions";
 import { Avatar } from "./ui";
-import { ColorPicker, Field, inputCls, Submit } from "./form-bits";
+import { CategoryPicker } from "./category-picker";
+import { ColorPicker, Field, inputCls, Submit, submitWithoutReset } from "./form-bits";
 
 const PRESETS: { label: string; count: number; unit: IntervalUnit }[] = [
   { label: "Miesięcznie", count: 1, unit: "month" },
@@ -13,36 +14,32 @@ const PRESETS: { label: string; count: number; unit: IntervalUnit }[] = [
   { label: "Tygodniowo", count: 1, unit: "week" },
 ];
 
-const CATEGORIES = ["Streaming", "Muzyka", "Oprogramowanie", "AI", "Chmura", "Gry", "Telefon i internet", "Sport", "Prasa", "Edukacja", "Ubezpieczenie", "Inne"];
-
 export function SubscriptionForm({
   action,
   sub,
   cards,
-  today,
   categories,
 }: {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   sub?: Subscription | null;
   cards: Card[];
-  today: string;
   categories: string[];
 }) {
-  const [state, formAction] = useActionState(action, undefined);
+  const [state, formAction, pending] = useActionState(action, undefined);
+  const [, startTransition] = useTransition();
   const e = state?.fieldErrors ?? {};
   const [name, setName] = useState(sub?.name ?? "");
   const [color, setColor] = useState(sub?.color ?? "forest");
   const [count, setCount] = useState(sub?.intervalCount ?? 1);
   const [unit, setUnit] = useState<IntervalUnit>(sub?.intervalUnit ?? "month");
   const [more, setMore] = useState(
-    !!(sub?.firstBillingDate || sub?.trialEndDate || sub?.endDate || (sub?.splitWith ?? 1) > 1 || sub?.url || sub?.notes),
+    !!(sub?.trialEndDate || sub?.endDate || (sub?.splitWith ?? 1) > 1 || sub?.url || sub?.notes),
   );
   const presetActive = (p: (typeof PRESETS)[number]) => p.count === count && p.unit === unit;
   const custom = !PRESETS.some(presetActive);
-  const allCats = [...new Set([...categories, ...CATEGORIES])];
 
   return (
-    <form action={formAction} className="flex max-w-2xl flex-col gap-6">
+    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-2xl flex-col gap-6">
       <div className="flex items-center gap-4">
         <Avatar name={name || "?"} color={color} size={56} />
         <Field label="Nazwa" error={e.name} className="flex-1">
@@ -122,30 +119,30 @@ export function SubscriptionForm({
       </fieldset>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Od kiedy" error={e.startDate}>
-          <input name="startDate" type="date" required defaultValue={sub?.startDate ?? today} className={inputCls} />
+        <Field label="Dzień płatności" hint="np. najbliższa" error={e.firstBillingDate}>
+          <input name="firstBillingDate" type="date" defaultValue={sub?.firstBillingDate ?? ""} className={inputCls} aria-invalid={!!e.firstBillingDate} />
         </Field>
-        <Field label="Karta" error={e.cardId}>
-          <select name="cardId" defaultValue={sub?.cardId ?? ""} className={inputCls}>
-            <option value="">— brak —</option>
-            {cards.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.last4 ? ` ••${c.last4}` : ""}
-              </option>
-            ))}
-          </select>
+        <Field label="Od kiedy" hint="opcjonalnie" error={e.startDate}>
+          <input name="startDate" type="date" defaultValue={sub?.startDate ?? ""} className={inputCls} />
         </Field>
       </div>
+      <p className="-mt-3 text-xs text-slate">
+        Wystarczy jedna z dat. Kolejne płatności liczę od dnia płatności; data startu dolicza historię wstecz.
+      </p>
 
-      <Field label="Kategoria" error={e.category}>
-        <input name="category" list="categories" defaultValue={sub?.category ?? ""} placeholder="np. Streaming" className={inputCls} />
-        <datalist id="categories">
-          {allCats.map((c) => (
-            <option key={c} value={c} />
+      <Field label="Karta" error={e.cardId}>
+        <select name="cardId" defaultValue={sub?.cardId ?? ""} className={inputCls}>
+          <option value="">— brak —</option>
+          {cards.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+              {c.last4 ? ` ••${c.last4}` : ""}
+            </option>
           ))}
-        </datalist>
+        </select>
       </Field>
+
+      <CategoryPicker name="category" initial={sub?.category ?? null} options={categories} />
 
       <Field label="Status">
         <select name="status" defaultValue={sub?.status ?? "active"} className={inputCls}>
@@ -168,9 +165,6 @@ export function SubscriptionForm({
             <input name="trialEndDate" type="date" defaultValue={sub?.trialEndDate ?? ""} className={inputCls} />
           </Field>
         </div>
-        <Field label="Pierwsza płatność" hint="Tylko jeśli inna niż data startu — od niej liczone są kolejne" error={e.firstBillingDate}>
-          <input name="firstBillingDate" type="date" defaultValue={sub?.firstBillingDate ?? ""} className={inputCls} />
-        </Field>
         <Field label="Dzielę koszt na (osób)" hint="Np. plan rodzinny na 4 — liczy się 1/4 kwoty" error={e.splitWith}>
           <input name="splitWith" type="number" min={1} max={20} inputMode="numeric" defaultValue={sub?.splitWith ?? 1} className={`${inputCls} w-24`} />
         </Field>
@@ -188,7 +182,7 @@ export function SubscriptionForm({
 
       {state?.error && <p className="rounded-card bg-alarm/10 px-4 py-3 text-sm font-semibold text-alarm">{state.error}</p>}
       <div>
-        <Submit>{sub ? "Zapisz zmiany" : "Dodaj subskrypcję"}</Submit>
+        <Submit pending={pending}>{sub ? "Zapisz zmiany" : "Dodaj subskrypcję"}</Submit>
       </div>
     </form>
   );

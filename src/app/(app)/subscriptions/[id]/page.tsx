@@ -4,7 +4,7 @@ import { ExternalLink, Pencil } from "lucide-react";
 import { cancelSubscription, deleteSubscription, setStatus } from "@/app/actions";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Avatar, BigMoney, btn, Tag } from "@/components/ui";
-import { billingAnchor, chargesBetween, cycleLabel, monthlyFactor } from "@/lib/billing";
+import { chargesBetween, cycleLabel, monthlyFactor } from "@/lib/billing";
 import { addDays, addMonths } from "@/lib/dates";
 import { cardExpiry, loadOne } from "@/lib/data";
 import { dateLong, dateShort, money, relative } from "@/lib/format";
@@ -18,7 +18,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
   if (!s) notFound();
 
   const upcoming = s.live ? chargesBetween(s, today, addMonths(today, 24)).slice(0, 6) : [];
-  const past = chargesBetween(s, billingAnchor(s), addDays(today, -1), true);
+  const past = chargesBetween(s, "1970-01-01", addDays(today, -1), true);
   const paidSoFar = past.length * s.myAmount;
   const cardExp = s.card ? cardExpiry(s.card) : null;
   const perYear = s.myAmount * monthlyFactor(s.intervalUnit, s.intervalCount) * 12;
@@ -82,7 +82,7 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
 
       <div className="grid gap-8 md:grid-cols-2">
         <dl className="divide-y divide-fog rounded-card shadow-hairline">
-          <Row label="Od">{dateLong(s.startDate)}</Row>
+          {s.startDate && <Row label="Od">{dateLong(s.startDate)}</Row>}
           <Row label="Do">{s.endDate ? dateLong(s.endDate) : "bezterminowo"}</Row>
           {s.trialEndDate && <Row label="Okres próbny do">{dateLong(s.trialEndDate)}</Row>}
           <Row label="Cykl">{cycleLabel(s.intervalUnit, s.intervalCount)}</Row>

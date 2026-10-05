@@ -59,3 +59,24 @@ test("labels and factors", () => {
   assert.equal(cycleLabel("month", 5), "co 5 miesięcy");
   assert.equal(monthlyFactor("year", 1), 1 / 12);
 });
+
+test("no start date: counts from the given payment date", () => {
+  const s = { ...base, startDate: null, firstBillingDate: "2026-10-12" };
+  assert.equal(nextCharge(s, "2026-10-05"), "2026-10-12");
+  assert.deepEqual(chargesBetween(s, "2026-01-01", "2026-10-11", true), []);
+});
+
+test("start date + later payment date: charges counted back to start", () => {
+  const s = { ...base, startDate: "2026-06-03", firstBillingDate: "2026-10-12" };
+  assert.deepEqual(chargesBetween(s, "2000-01-01", "2026-10-31"), [
+    "2026-06-12",
+    "2026-07-12",
+    "2026-08-12",
+    "2026-09-12",
+    "2026-10-12",
+  ]);
+});
+
+test("no dates at all yields no charges", () => {
+  assert.deepEqual(chargesBetween({ ...base, startDate: null }, "2026-01-01", "2026-12-31"), []);
+});

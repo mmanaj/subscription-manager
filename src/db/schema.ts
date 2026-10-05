@@ -32,7 +32,7 @@ export const subscriptions = pgTable("subscriptions", {
   currency: varchar("currency", { length: 3 }).notNull().default("PLN"),
   intervalCount: integer("interval_count").notNull().default(1),
   intervalUnit: intervalUnit("interval_unit").notNull().default("month"),
-  startDate: date("start_date").notNull(),
+  startDate: date("start_date"),
   firstBillingDate: date("first_billing_date"),
   trialEndDate: date("trial_end_date"),
   endDate: date("end_date"),
@@ -44,6 +44,12 @@ export const subscriptions = pgTable("subscriptions", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type Card = typeof cards.$inferSelect;

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { cards, subscriptions } from "@/db/schema";
+import { cards, categories, subscriptions } from "@/db/schema";
 import { endSession, passwordMatches, requireAuth, startSession } from "@/lib/auth";
 import { nextCharge } from "@/lib/billing";
 import { today } from "@/lib/dates";
@@ -32,7 +32,7 @@ const subscriptionSchema = z
     currency: z.enum(["PLN", "EUR", "USD", "GBP", "CHF"]),
     intervalCount: z.coerce.number().int().min(1, "Min. 1").max(365),
     intervalUnit: z.enum(["day", "week", "month", "year"]),
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Podaj datę rozpoczęcia"),
+    startDate: optDate,
     firstBillingDate: optDate,
     trialEndDate: optDate,
     endDate: optDate,
@@ -44,7 +44,11 @@ const subscriptionSchema = z
     url: optStr.refine((v) => v === null || /^https?:\/\//.test(v), "Adres musi zaczynać się od http(s)://"),
     notes: optStr,
   })
-  .refine((v) => !v.endDate || v.endDate > v.startDate, { path: ["endDate"], message: "Koniec musi być po starcie" });
+  .refine((v) => v.startDate || v.firstBillingDate || v.trialEndDate, {
+    path: ["firstBillingDate"],
+    message: "Podaj datę najbliższej płatności albo od kiedy masz subskrypcję",
+  })
+  .refine((v) => !v.endDate || !v.startDate || v.endDate > v.startDate, { path: ["endDate"], message: "Koniec musi być po starcie" });
 
 function parseForm<T extends z.ZodTypeAny>(schema: T, formData: FormData) {
   const r = schema.safeParse(Object.fromEntries(formData));
@@ -101,6 +105,15 @@ export async function setStatus(id: number, status: "active" | "paused") {
   if (status === "active") patch.endDate = null;
   await db.update(subscriptions).set(patch).where(eq(subscriptions.id, id));
   refreshAll();
+}
+
+export async function addCategory(raw: string): Promise<{ name?: string; error?: string }> {
+  await requireAuth();
+  const name = raw.trim().replace(/\s+/g, " ");
+  if (!name) return { error: "Wpisz nazwę" };
+  if (name.length > 40) return { error: "Max 40 znaków" };
+  await db.insert(categories).values({ name }).onConflictDoNothing();
+  return { name };
 }
 
 const cardSchema = z.object({

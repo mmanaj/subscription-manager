@@ -6,9 +6,19 @@ type BillingFields = Pick<
   "intervalCount" | "intervalUnit" | "startDate" | "firstBillingDate" | "trialEndDate" | "endDate" | "status"
 >;
 
-/** First charge date: explicit first billing date, else trial end, else start. */
-export function billingAnchor(s: BillingFields): ISODate {
-  return s.firstBillingDate ?? s.trialEndDate ?? s.startDate;
+/** A known charge date to count cycles from: explicit payment date, else trial end, else start. */
+export function billingAnchor(s: BillingFields): ISODate | null {
+  return s.firstBillingDate ?? s.trialEndDate ?? s.startDate ?? null;
+}
+
+/**
+ * Earliest date a charge can fall on. With a start date earlier than the anchor (e.g. you gave the
+ * next payment date and when you subscribed), charges are also counted backwards to the start.
+ * A trial means nothing was charged before it ended.
+ */
+function earliestCharge(s: BillingFields, anchor: ISODate): ISODate {
+  if (s.trialEndDate) return s.trialEndDate > anchor ? anchor : s.trialEndDate;
+  return s.startDate && s.startDate < anchor ? s.startDate : anchor;
 }
 
 /** k-th charge date counting from the anchor (k = 0 is the anchor itself). */
@@ -37,15 +47,21 @@ function approxDays(unit: IntervalUnit, count: number) {
 export function chargesBetween(s: BillingFields, from: ISODate, to: ISODate, ignoreStatus = false): ISODate[] {
   if (!ignoreStatus && s.status !== "active") return [];
   const anchor = billingAnchor(s);
+  if (!anchor) return [];
   const count = Math.max(1, s.intervalCount);
+  const period = approxDays(s.intervalUnit, count);
+  const earliest = earliestCharge(s, anchor);
+  const at = (k: number) => nthCharge(anchor, s.intervalUnit, count, k);
+
+  // Lowest cycle index still on/after the earliest possible charge (≤ 0).
+  let kMin = -Math.floor((Date.parse(anchor) - Date.parse(earliest)) / 86_400_000 / period) - 1;
+  while (at(kMin) < earliest) kMin++;
+  // Jump close to `from` instead of walking from kMin.
+  let k = Math.max(kMin, Math.floor((Date.parse(from) - Date.parse(anchor)) / 86_400_000 / period) - 1);
+
   const out: ISODate[] = [];
-  let k = 0;
-  if (from > anchor) {
-    const daysAhead = (Date.parse(from) - Date.parse(anchor)) / 86_400_000;
-    k = Math.max(0, Math.floor(daysAhead / approxDays(s.intervalUnit, count)) - 1);
-  }
   for (let i = 0; i < 5000; i++, k++) {
-    const d = nthCharge(anchor, s.intervalUnit, count, k);
+    const d = at(k);
     if (d > to) break;
     if (s.endDate && d >= s.endDate) break;
     if (d >= from) out.push(d);

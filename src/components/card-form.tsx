@@ -1,15 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { ShieldCheck } from "lucide-react";
 import type { Card } from "@/db/schema";
 import type { FormState } from "@/app/actions";
 import { BRANDS, detectBrand, formatExpiryInput, parseExpiry } from "@/lib/card-brand";
-import { ColorPicker, Field, inputCls, Submit } from "./form-bits";
+import { ColorPicker, Field, inputCls, Submit, submitWithoutReset } from "./form-bits";
 import { CardVisual } from "./card-visual";
 
 export function CardForm({ action, card }: { action: (p: FormState, fd: FormData) => Promise<FormState>; card?: Card | null }) {
-  const [state, formAction] = useActionState(action, undefined);
+  const [state, formAction, pending] = useActionState(action, undefined);
+  const [, startTransition] = useTransition();
   const e = state?.fieldErrors ?? {};
   const [name, setName] = useState(card?.name ?? "");
   const [brand, setBrand] = useState(card?.brand ?? "");
@@ -36,7 +37,7 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
   }
 
   return (
-    <form action={formAction} className="flex max-w-xl flex-col gap-6">
+    <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-xl flex-col gap-6">
       <CardVisual card={{ name, brand, last4, expMonth: exp?.month ?? null, expYear: exp?.year ?? null, color }} />
 
       <p className="flex items-start gap-2 rounded-card bg-mist px-4 py-3 text-sm text-forest">
@@ -116,7 +117,7 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
         <ColorPicker name="color" value={color} onChange={setColor} />
       </div>
       {state?.error && <p className="rounded-card bg-alarm/10 px-4 py-3 text-sm font-semibold text-alarm">{state.error}</p>}
-      <Submit>{card ? "Zapisz kartę" : "Dodaj kartę"}</Submit>
+      <Submit pending={pending}>{card ? "Zapisz kartę" : "Dodaj kartę"}</Submit>
     </form>
   );
 }
