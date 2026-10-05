@@ -20,7 +20,7 @@ export function Field({
   className?: string;
 }) {
   return (
-    <label className={`flex flex-col gap-1.5 ${className}`}>
+    <label className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
       <span className="text-sm font-medium text-ink">{label}</span>
       {children}
       {error ? <span className="text-sm text-ember">{error}</span> : hint ? <span className="text-xs text-muted">{hint}</span> : null}
