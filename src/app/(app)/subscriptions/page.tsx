@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { after } from "next/server";
 import { backfillLogos } from "@/lib/logos";
-import { Avatar, btn, Empty, PageHeader, Segments, Tag } from "@/components/ui";
+import { ChevronDown } from "lucide-react";
+import { ScopeBadge, ScopeTabs } from "@/components/scope";
+import { Avatar, btn, Empty, PageHeader, Tag } from "@/components/ui";
 import { ChipScroller } from "@/components/chip-scroller";
-import { isScope, loadAll, SCOPES, sum, type EnrichedSub } from "@/lib/data";
-import { cycleLabel } from "@/lib/billing";
+import { isScope, loadAll, sum, type EnrichedSub } from "@/lib/data";
+import { cycleLabel, plural } from "@/lib/billing";
 import { dateShort, money, relative } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -43,74 +45,100 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
   if (kat && !catCounts.has(kat)) cats.push(kat);
   const list = base.filter((s) => !kat || catOf(s) === kat).sort(sorts[sort].fn);
   const qs = (patch: Record<string, string | undefined>) => {
-    const q = new URLSearchParams(Object.entries({ f, s: sort, typ, kat, ...patch }).filter(([, v]) => v) as [string, string][]);
+    const cur = { f: f === "active" ? undefined : f, s: sort === "next" ? undefined : sort, typ, kat };
+    const q = new URLSearchParams(Object.entries({ ...cur, ...patch }).filter(([, v]) => v) as [string, string][]);
     return `?${q}`;
   };
   const monthly = sum(list.map((s) => s.monthlyPLN));
 
+  const filtersChanged = f !== "active" || sort !== "next";
+
   return (
     <div>
       <PageHeader title="Subskrypcje" />
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Segments
-          active={f}
-          items={Object.entries(filters).map(([key, v]) => ({ key, label: v.label, href: qs({ f: key }) }))}
-        />
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-pebble">Sortuj:</span>
-          {Object.entries(sorts).map(([key, v]) => (
+
+      <div className="flex flex-col gap-3">
+        <ScopeTabs active={typ} href={(t) => qs({ typ: t, kat: undefined })} />
+
+        {(cats.length > 1 || kat) && (
+          <ChipScroller
+            label="Kategorie"
+            className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 text-sm [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
+          >
             <Link
-              key={key}
-              href={qs({ s: key })}
-              className={`rounded-full px-3 py-1 font-semibold ${key === sort ? "bg-forest text-paper" : "text-forest hover:bg-mist"}`}
+              href={qs({ kat: undefined })}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition ${!kat ? "bg-lime text-forest" : "bg-paper text-charcoal shadow-hairline hover:bg-mist"}`}
             >
-              {v.label}
+              Wszystkie kategorie
             </Link>
-          ))}
-        </div>
+            {cats.map((c) => (
+              <Link
+                key={c}
+                aria-current={c === kat ? "page" : undefined}
+                href={qs({ kat: c === kat ? undefined : c })}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition ${
+                  c === kat ? "bg-lime text-forest" : "bg-paper text-charcoal shadow-hairline hover:bg-mist"
+                }`}
+              >
+                {c}
+                <span className="ml-1.5 tabular text-xs opacity-60">{catCounts.get(c) ?? 0}</span>
+              </Link>
+            ))}
+          </ChipScroller>
+        )}
+
+        {/* Status + sort live behind one toggle: rarely changed, so they shouldn't cost a row each. */}
+        <details className="group" open={filtersChanged || undefined}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-sm [&::-webkit-details-marker]:hidden">
+            <span className="text-slate">
+              {list.length} {plural(list.length, ["subskrypcja", "subskrypcje", "subskrypcji"])}
+              {f !== "inactive" && list.length > 0 && (
+                <>
+                  {" "}
+                  · <span className="tabular font-semibold text-obsidian">{money(monthly)}</span>/mies.
+                </>
+              )}
+            </span>
+            <span className="relative inline-flex items-center gap-1 rounded-full px-3 py-1.5 font-semibold text-forest transition hover:bg-mist">
+              {filtersChanged && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-lime ring-2 ring-paper" />}
+              Filtry
+              <ChevronDown size={16} className="transition-transform duration-200 group-open:rotate-180" />
+            </span>
+          </summary>
+          <div className="mt-2 flex flex-col gap-3 rounded-card bg-fog p-3">
+            <div className="flex flex-col gap-1.5 text-sm">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate">Pokaż</span>
+              <div className="flex flex-wrap gap-2">
+              {Object.entries(filters).map(([key, v]) => (
+                <Link
+                  key={key}
+                  href={qs({ f: key === "active" ? undefined : key })}
+                  className={`rounded-full px-3 py-1 font-semibold ${key === f ? "bg-forest text-paper" : "bg-paper text-forest"}`}
+                >
+                  {v.label}
+                </Link>
+              ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5 text-sm">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate">Sortuj</span>
+              <div className="flex flex-wrap gap-2">
+              {Object.entries(sorts).map(([key, v]) => (
+                <Link
+                  key={key}
+                  href={qs({ s: key === "next" ? undefined : key })}
+                  className={`rounded-full px-3 py-1 font-semibold ${key === sort ? "bg-forest text-paper" : "bg-paper text-forest"}`}
+                >
+                  {v.label}
+                </Link>
+              ))}
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
 
-      <div className="-mx-4 -mt-3 mb-3 flex gap-2 overflow-x-auto px-4 text-sm [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
-        {[["", "Każdy typ"], ...Object.entries(SCOPES).map(([k, v]) => [k, v.plural])].map(([k, label]) => (
-          <Link
-            key={k || "all"}
-            href={qs({ typ: k || undefined })}
-            className={`shrink-0 rounded-full px-3 py-1 font-semibold ${(typ ?? "") === k ? "bg-forest text-paper" : "text-forest hover:bg-mist"}`}
-          >
-            {label}
-          </Link>
-        ))}
-      </div>
-
-      {cats.length > 1 || kat ? (
-        <ChipScroller
-          label="Kategorie"
-          className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 text-sm [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
-        >
-          <Link
-            href={qs({ kat: undefined })}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition ${!kat ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"}`}
-          >
-            Wszystkie kategorie
-          </Link>
-          {cats.map((c) => (
-            <Link
-              key={c}
-              aria-current={c === kat ? "page" : undefined}
-              href={qs({ kat: c === kat ? undefined : c })}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 font-semibold transition ${
-                c === kat ? "bg-lime text-forest" : "bg-fog text-charcoal hover:bg-mist"
-              }`}
-            >
-              {c}
-              <span className="ml-1.5 tabular text-xs opacity-60">{catCounts.get(c) ?? 0}</span>
-            </Link>
-          ))}
-        </ChipScroller>
-      ) : (
-        <div className="mb-3" />
-      )}
-
+      <div className="mt-4" />
       {list.length === 0 ? (
         <Empty title={kat ? `Nic w kategorii „${kat}”.` : f === "active" ? "Brak aktywnych subskrypcji." : "Nic tu nie ma."}>
           <Link href="/subscriptions/new" className={btn.primary}>
@@ -126,41 +154,33 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
                   href={`/subscriptions/${s.id}`}
                   className="press flex items-center gap-3 rounded-card bg-paper p-3 shadow-hairline hover:bg-fog/50 active:bg-fog"
                 >
-                  <Avatar name={s.name} color={s.color} logo={s.logo} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-semibold text-obsidian">{s.name}</span>
+                  <span className="relative shrink-0">
+                    <Avatar name={s.name} color={s.color} logo={s.logo} />
+                    <ScopeBadge scope={s.scope} />
+                  </span>
+                  <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3">
+                    <span className="truncate font-semibold text-obsidian">{s.name}</span>
+                    <span className="tabular whitespace-nowrap text-right font-semibold text-obsidian">
+                      {money(s.myAmount, s.currency)}
+                    </span>
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm text-slate">
                       {s.trial && <Tag>próbny</Tag>}
                       {s.status === "paused" && <Tag tone="fog">wstrzymana</Tag>}
-                      {s.status === "cancelled" && <Tag tone="fog">anulowana</Tag>}
-                      {s.scope === "shared" && <Tag tone="fog">wspólna{s.splitWith > 1 ? ` ÷${s.splitWith}` : ""}</Tag>}
-                      {s.scope === "business" && <Tag tone="fog">firmowa</Tag>}
-                      {s.scope === "personal" && s.splitWith > 1 && <Tag tone="fog">÷{s.splitWith}</Tag>}
-                    </div>
-                    <div className="truncate text-sm text-slate">
-                      {cycleLabel(s.intervalUnit, s.intervalCount)}
-                      {s.card && ` · ${s.card.name}${s.card.last4 ? ` ••${s.card.last4}` : ""}`}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="tabular font-semibold text-obsidian">{money(s.myAmount, s.currency)}</div>
-                    <div className="text-xs text-pebble">
-                      {s.next
-                        ? `${dateShort(s.next)} · ${relative(s.next, today)}`
-                        : s.endDate
-                          ? `do ${dateShort(s.endDate)}`
-                          : "—"}
-                    </div>
+                      {s.status === "cancelled" && <Tag tone="alarm">anulowana</Tag>}
+                      <span className="truncate">
+                        {cycleLabel(s.intervalUnit, s.intervalCount)}
+                        {s.splitWith > 1 && ` · ÷${s.splitWith}`}
+                        {s.card && ` · ${s.card.last4 ? `••${s.card.last4}` : s.card.name}`}
+                      </span>
+                    </span>
+                    <span className="whitespace-nowrap text-right text-xs text-pebble">
+                      {s.next ? relative(s.next, today) : s.endDate ? `do ${dateShort(s.endDate)}` : "—"}
+                    </span>
                   </div>
                 </Link>
               </li>
             ))}
           </ul>
-          {f !== "inactive" && (
-            <p className="mt-6 text-right text-sm text-slate">
-              Razem średnio <span className="tabular font-semibold text-obsidian">{money(monthly)}</span> / mies.
-            </p>
-          )}
         </>
       )}
     </div>

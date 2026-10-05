@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Payment } from "@/lib/data";
 import { dateShort, money, relative } from "@/lib/format";
 import { cycleLabel } from "@/lib/billing";
+import { ScopeBadge } from "./scope";
 import { Avatar } from "./ui";
 
 export function PaymentRow({ p, today, index = 0 }: { p: Payment; today: string; index?: number }) {
@@ -16,7 +17,10 @@ export function PaymentRow({ p, today, index = 0 }: { p: Payment; today: string;
         <div className="text-xl font-black leading-none tracking-tight text-obsidian">{dateShort(p.date).split(" ")[0]}</div>
         <div className="text-[11px] font-semibold uppercase text-pebble">{dateShort(p.date).split(" ")[1]}</div>
       </div>
-      <Avatar name={s.name} color={s.color} logo={s.logo} size={40} />
+      <span className="relative shrink-0">
+        <Avatar name={s.name} color={s.color} logo={s.logo} size={40} />
+        <ScopeBadge scope={s.scope} size={16} />
+      </span>
       <div className="min-w-0 flex-1">
         <div className="truncate font-semibold text-obsidian">{s.name}</div>
         <div className="truncate text-sm text-slate">

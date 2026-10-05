@@ -6,8 +6,9 @@ import { Bars } from "@/components/bars";
 import { PaymentCalendar } from "@/components/payment-calendar";
 import { PaymentRow } from "@/components/payment-row";
 import { CountUpMoney } from "@/components/count-up";
-import { btn, Empty, SectionTitle, Segments } from "@/components/ui";
-import { dashboardStats, isScope, loadAll, SCOPES, sum } from "@/lib/data";
+import { ScopeTabs } from "@/components/scope";
+import { btn, Empty, SectionTitle } from "@/components/ui";
+import { dashboardStats, isScope, loadAll, sum } from "@/lib/data";
 import { money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -47,17 +48,7 @@ export default async function Dashboard(props: PageProps<"/">) {
       {/* Hero */}
       <div className="flex flex-col gap-4">
         {scopesInUse.size > 1 && (
-          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-            <Segments
-              active={scope ?? "all"}
-              items={[
-                { key: "all", label: "Wszystkie", href: "/" },
-                ...Object.entries(SCOPES)
-                  .filter(([k]) => scopesInUse.has(k as keyof typeof SCOPES))
-                  .map(([k, v]) => ({ key: k, label: v.plural, href: `/?typ=${k}` })),
-              ]}
-            />
-          </div>
+          <ScopeTabs active={scope} available={scopesInUse} href={(t) => (t ? `/?typ=${t}` : "/")} />
         )}
         <section className="rise rounded-large bg-forest p-6 text-paper sm:p-10">
           <p className="text-sm font-semibold text-mist">Płacisz średnio miesięcznie</p>
