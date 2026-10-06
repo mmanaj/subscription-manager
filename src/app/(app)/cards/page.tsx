@@ -6,12 +6,14 @@ import { Avatar, btn, Empty, PageHeader, Tag } from "@/components/ui";
 import { plural } from "@/lib/billing";
 import { cardExpiry, loadAll, sum, type EnrichedSub } from "@/lib/data";
 import { money, relative } from "@/lib/format";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Płatności" };
 
 export default async function CardsPage() {
-  const { cards, subs, today } = await loadAll();
+  const user = await requireUser();
+  const { cards, subs, today } = await loadAll(user.id);
   const live = subs.filter((s) => s.live);
   const unassigned = live.filter((s) => !s.cardId);
   // Busiest card first: that's the one you'd look for.

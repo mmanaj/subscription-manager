@@ -1,4 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { users } from "@/db/schema";
 import { addDays, addMonths } from "@/lib/dates";
 import { loadAll, paymentsBetween } from "@/lib/data";
 
@@ -8,19 +10,13 @@ function esc(s: string) {
   return s.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
 }
 
-function tokenOk(given: string) {
-  const expected = process.env.ICS_TOKEN;
-  if (!expected) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export async function GET(_req: Request, ctx: RouteContext<"/api/calendar/[token]">) {
   const { token } = await ctx.params;
-  if (!tokenOk(token.replace(/\.ics$/, ""))) return new Response("Not found", { status: 404 });
+  // The token is a 192-bit random secret looked up by unique index — that lookup is the auth check.
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.icsToken, token.replace(/\.ics$/, "")));
+  if (!user) return new Response("Not found", { status: 404 });
 
-  const data = await loadAll();
+  const data = await loadAll(user.id);
   const payments = paymentsBetween(data.subs, addDays(data.today, -31), addMonths(data.today, 12));
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
 

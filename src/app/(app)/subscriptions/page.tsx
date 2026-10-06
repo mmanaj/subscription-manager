@@ -8,6 +8,7 @@ import { ChipScroller } from "@/components/chip-scroller";
 import { isScope, loadAll, sum, type EnrichedSub } from "@/lib/data";
 import { cycleLabel, plural } from "@/lib/billing";
 import { dateShort, money, relative } from "@/lib/format";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Subskrypcje" };
@@ -32,8 +33,9 @@ export default async function SubscriptionsPage(props: PageProps<"/subscriptions
   const sort = (typeof sp.s === "string" && sp.s in sorts ? sp.s : "next") as keyof typeof sorts;
   const typ = isScope(sp.typ) ? sp.typ : undefined;
   const kat = typeof sp.kat === "string" && sp.kat ? sp.kat : undefined;
-  const { subs, today } = await loadAll();
-  after(() => backfillLogos());
+  const user = await requireUser();
+  const { subs, today } = await loadAll(user.id);
+  after(() => backfillLogos(user.id));
   const catOf = (s: EnrichedSub) => s.category?.trim() || NO_CATEGORY;
   // Category chips count what the other filters leave, so the numbers match what a tap will show.
   const base = subs.filter((s) => filters[f].fn(s) && (!typ || s.scope === typ));

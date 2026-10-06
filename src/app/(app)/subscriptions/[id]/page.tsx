@@ -12,12 +12,14 @@ import { chargesBetween, cycleLabel, monthlyFactor } from "@/lib/billing";
 import { addDays, addMonths } from "@/lib/dates";
 import { cardExpiry, loadOne, SCOPES, sum } from "@/lib/data";
 import { dateLong, dateShort, money, relative } from "@/lib/format";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function SubscriptionDetail(props: PageProps<"/subscriptions/[id]">) {
   const id = Number((await props.params).id);
-  const { sub: s, today, rates } = await loadOne(id);
+  const user = await requireUser();
+  const { sub: s, today, rates } = await loadOne(user.id, id);
   if (!s) notFound();
 
   const upcoming = s.live ? chargesBetween(s, today, addMonths(today, 24)).slice(0, 6) : [];

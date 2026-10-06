@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { cards, logos, payments, priceChanges, subscriptions, type Card, type SubscriptionScope, type Subscription } from "@/db/schema";
 import { chargesBetween, cycleLabel, inTrial, isLive, monthlyFactor, nextCharge } from "./billing";
@@ -34,17 +34,17 @@ export type EnrichedSub = Subscription & {
   trial: boolean;
 };
 
-export async function listCards(): Promise<Card[]> {
-  return db.select().from(cards).orderBy(asc(cards.name));
+export async function listCards(userId: number): Promise<Card[]> {
+  return db.select().from(cards).where(eq(cards.userId, userId)).orderBy(asc(cards.name));
 }
 
-export async function getCard(id: number): Promise<Card | null> {
-  const [c] = await db.select().from(cards).where(eq(cards.id, id));
+export async function getCard(userId: number, id: number): Promise<Card | null> {
+  const [c] = await db.select().from(cards).where(and(eq(cards.id, id), eq(cards.userId, userId)));
   return c ?? null;
 }
 
-export async function getRawSubscription(id: number): Promise<Subscription | null> {
-  const [s] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+export async function getRawSubscription(userId: number, id: number): Promise<Subscription | null> {
+  const [s] = await db.select().from(subscriptions).where(and(eq(subscriptions.id, id), eq(subscriptions.userId, userId)));
   return s ?? null;
 }
 
@@ -82,15 +82,30 @@ function enrich(
   };
 }
 
-export async function loadAll() {
+export async function loadAll(userId: number) {
   const today = todayFn();
+  const mine = eq(subscriptions.userId, userId);
   const [subs, cardList, rates, changes, logoMeta, paid] = await Promise.all([
-    db.select().from(subscriptions).orderBy(asc(subscriptions.name)),
-    listCards(),
+    db.select().from(subscriptions).where(mine).orderBy(asc(subscriptions.name)),
+    listCards(userId),
     getRates(),
-    db.select().from(priceChanges).orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id)),
-    db.select({ id: logos.subscriptionId, fullBleed: logos.fullBleed }).from(logos),
-    db.select({ subId: payments.subscriptionId, date: payments.chargeDate }).from(payments),
+    db
+      .select({ c: priceChanges })
+      .from(priceChanges)
+      .innerJoin(subscriptions, eq(subscriptions.id, priceChanges.subscriptionId))
+      .where(mine)
+      .orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id))
+      .then((rows) => rows.map((r) => r.c)),
+    db
+      .select({ id: logos.subscriptionId, fullBleed: logos.fullBleed })
+      .from(logos)
+      .innerJoin(subscriptions, eq(subscriptions.id, logos.subscriptionId))
+      .where(mine),
+    db
+      .select({ subId: payments.subscriptionId, date: payments.chargeDate })
+      .from(payments)
+      .innerJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
+      .where(mine),
   ]);
   const paidFor = (id: number) => new Set(paid.filter((p) => p.subId === id).map((p) => p.date));
   const bleed = new Map(logoMeta.map((l) => [l.id, l.fullBleed]));
@@ -101,8 +116,8 @@ export async function loadAll() {
   return { today, rates, cards: cardList, subs: subs.map((s) => enrich(s, cardList, rates, today, eventsFor(s.id), bleed.get(s.id), paidFor(s.id))) };
 }
 
-export async function loadOne(id: number) {
-  const { today, rates, cards: cardList, subs } = await loadAll();
+export async function loadOne(userId: number, id: number) {
+  const { today, rates, cards: cardList, subs } = await loadAll(userId);
   return { today, rates, cards: cardList, sub: subs.find((s) => s.id === id) ?? null };
 }
 

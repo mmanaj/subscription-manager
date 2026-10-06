@@ -6,14 +6,15 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { cards, categories, payments, priceChanges, pushSubscriptions, settings, subscriptions } from "@/db/schema";
-import { endSession, passwordMatches, requireAuth, startSession } from "@/lib/auth";
+import { cards, categories, payments, priceChanges, pushSubscriptions, subscriptions, users } from "@/db/schema";
+import { endSession, requireUser } from "@/lib/auth";
 import { nextCharge } from "@/lib/billing";
 import { addDays, today } from "@/lib/dates";
 import { amountOn } from "@/lib/price";
 import { normalizeDomain } from "@/lib/logo-domains";
 import { fetchLogo, refreshLogo, storeLogo } from "@/lib/logos";
-import { sendToAll } from "@/lib/push";
+import { sendToUser } from "@/lib/push";
+import { deleteUser, rotateIcsToken } from "@/lib/users";
 
 export type FormState = { ok?: boolean; error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -78,16 +79,31 @@ function refreshAll() {
   revalidatePath("/", "layout");
 }
 
+/** The signed-in user plus their subscription; throws if it belongs to someone else or is gone. */
+async function ownSub(id: number) {
+  const user = await requireUser();
+  const [sub] = await db.select().from(subscriptions).where(and(eq(subscriptions.id, id), eq(subscriptions.userId, user.id)));
+  if (!sub) throw new Error("Subscription not found");
+  return { user, sub };
+}
+
+/** Same check for a card / bank account. */
+async function ownCard(userId: number, id: number) {
+  const [card] = await db.select({ id: cards.id }).from(cards).where(and(eq(cards.id, id), eq(cards.userId, userId)));
+  return !!card;
+}
+
 export async function saveSubscription(id: number | null, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requireAuth();
+  const user = await requireUser();
   const parsed = parseForm(subscriptionSchema, formData);
   if (!parsed.data) return parsed.state;
   const { priceMode, priceFrom, ...fields } = parsed.data;
-  const values = { ...fields, splitWith: fields.scope === "shared" ? fields.splitWith : 1, updatedAt: new Date() };
+  const cardId = fields.cardId && (await ownCard(user.id, fields.cardId)) ? fields.cardId : null;
+  const values = { ...fields, cardId, splitWith: fields.scope === "shared" ? fields.splitWith : 1, updatedAt: new Date() };
   let savedId = id;
   let needsLogo = true;
   if (id) {
-    const [prev] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    const { sub: prev } = await ownSub(id);
     needsLogo = !prev?.logoCheckedAt || prev.name !== values.name || prev.url !== values.url;
     // Track when manual mode started; charges before that can't be "overdue".
     Object.assign(values, { manualSince: values.manual ? (prev?.manual ? prev.manualSince : today()) : null });
@@ -109,7 +125,10 @@ export async function saveSubscription(id: number | null, _prev: FormState, form
     });
   } else {
     Object.assign(values, { manualSince: values.manual ? today() : null });
-    const [row] = await db.insert(subscriptions).values(values).returning({ id: subscriptions.id });
+    const [row] = await db
+      .insert(subscriptions)
+      .values({ ...values, userId: user.id })
+      .returning({ id: subscriptions.id });
     savedId = row.id;
   }
   if (needsLogo) await lookUpLogo(savedId!);
@@ -128,7 +147,7 @@ async function lookUpLogo(id: number) {
 }
 
 export async function setLogoDomain(id: number, raw: string): Promise<{ error?: string }> {
-  await requireAuth();
+  await ownSub(id);
   const domain = normalizeDomain(raw);
   if (!domain) return { error: "Wpisz adres strony, np. skyshowtime.com" };
   const logo = await fetchLogo(domain);
@@ -139,7 +158,7 @@ export async function setLogoDomain(id: number, raw: string): Promise<{ error?: 
 }
 
 export async function uploadLogo(id: number, dataUrl: string): Promise<{ error?: string }> {
-  await requireAuth();
+  await ownSub(id);
   const m = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
   if (!m) return { error: "Nieobsługiwany format obrazka" };
   const data = Buffer.from(m[2], "base64");
@@ -151,7 +170,7 @@ export async function uploadLogo(id: number, dataUrl: string): Promise<{ error?:
 
 /** mode "monogram": no logo, never auto-fetch. mode "auto": forget overrides and look up again. */
 export async function resetLogo(id: number, mode: "monogram" | "auto"): Promise<{ error?: string }> {
-  await requireAuth();
+  await ownSub(id);
   if (mode === "monogram") {
     await storeLogo(id, null, { custom: true });
   } else {
@@ -214,7 +233,7 @@ const priceChangeSchema = z.object({
 });
 
 export async function addPriceChange(subId: number, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requireAuth();
+  await ownSub(subId);
   const parsed = parseForm(priceChangeSchema, formData);
   if (!parsed.data) return parsed.state;
   await db.transaction((tx) => applyPriceChange(tx, subId, parsed.data.date, parsed.data.amount));
@@ -223,7 +242,7 @@ export async function addPriceChange(subId: number, _prev: FormState, formData: 
 }
 
 export async function deletePriceChange(subId: number, changeId: number) {
-  await requireAuth();
+  await ownSub(subId);
   await db.transaction(async (tx) => {
     const events = await tx
       .select()
@@ -244,17 +263,15 @@ export async function deletePriceChange(subId: number, changeId: number) {
 }
 
 export async function deleteSubscription(id: number) {
-  await requireAuth();
-  await db.delete(subscriptions).where(eq(subscriptions.id, id));
+  const user = await requireUser();
+  await db.delete(subscriptions).where(and(eq(subscriptions.id, id), eq(subscriptions.userId, user.id)));
   refreshAll();
   redirect("/subscriptions");
 }
 
 /** Cancel: stop renewing. Access runs until the next charge date, which becomes the end date. */
 export async function cancelSubscription(id: number) {
-  await requireAuth();
-  const [s] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
-  if (!s) return;
+  const { sub: s } = await ownSub(id);
   const t = today();
   const end = s.endDate && s.endDate <= t ? s.endDate : (nextCharge(s, t) ?? t);
   await db
@@ -265,7 +282,7 @@ export async function cancelSubscription(id: number) {
 }
 
 export async function setStatus(id: number, status: "active" | "paused") {
-  await requireAuth();
+  await ownSub(id);
   const patch: Partial<typeof subscriptions.$inferInsert> = { status, updatedAt: new Date() };
   if (status === "active") patch.endDate = null;
   await db.update(subscriptions).set(patch).where(eq(subscriptions.id, id));
@@ -273,25 +290,28 @@ export async function setStatus(id: number, status: "active" | "paused") {
 }
 
 export async function addCategory(raw: string): Promise<{ name?: string; error?: string }> {
-  await requireAuth();
+  const user = await requireUser();
   const name = raw.trim().replace(/\s+/g, " ");
   if (!name) return { error: "Wpisz nazwę" };
   if (name.length > 40) return { error: "Max 40 znaków" };
-  await db.insert(categories).values({ name }).onConflictDoNothing();
+  await db.insert(categories).values({ userId: user.id, name }).onConflictDoNothing();
   return { name };
 }
 
 /** Renames everywhere; renaming onto an existing category merges the two. */
 export async function renameCategory(from: string, raw: string): Promise<{ error?: string }> {
-  await requireAuth();
+  const user = await requireUser();
   const to = raw.trim().replace(/\s+/g, " ");
   if (!to) return { error: "Wpisz nazwę" };
   if (to.length > 40) return { error: "Max 40 znaków" };
   if (to === from) return {};
   await db.transaction(async (tx) => {
-    await tx.insert(categories).values({ name: to }).onConflictDoNothing();
-    await tx.update(subscriptions).set({ category: to }).where(sql`trim(${subscriptions.category}) = ${from}`);
-    await tx.delete(categories).where(eq(categories.name, from));
+    await tx.insert(categories).values({ userId: user.id, name: to }).onConflictDoNothing();
+    await tx
+      .update(subscriptions)
+      .set({ category: to })
+      .where(and(eq(subscriptions.userId, user.id), sql`trim(${subscriptions.category}) = ${from}`));
+    await tx.delete(categories).where(and(eq(categories.userId, user.id), eq(categories.name, from)));
   });
   refreshAll();
   return {};
@@ -299,17 +319,20 @@ export async function renameCategory(from: string, raw: string): Promise<{ error
 
 /** Deletes a category; subscriptions in it become uncategorised. */
 export async function deleteCategory(name: string) {
-  await requireAuth();
+  const user = await requireUser();
   await db.transaction(async (tx) => {
-    await tx.update(subscriptions).set({ category: null }).where(sql`trim(${subscriptions.category}) = ${name}`);
-    await tx.delete(categories).where(eq(categories.name, name));
+    await tx
+      .update(subscriptions)
+      .set({ category: null })
+      .where(and(eq(subscriptions.userId, user.id), sql`trim(${subscriptions.category}) = ${name}`));
+    await tx.delete(categories).where(and(eq(categories.userId, user.id), eq(categories.name, name)));
   });
   refreshAll();
 }
 
 /** Ticks a manual charge off as paid (or undoes it). */
 export async function markPaid(subId: number, chargeDate: string, paid: boolean) {
-  await requireAuth();
+  await ownSub(subId);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(chargeDate)) return;
   if (paid) await db.insert(payments).values({ subscriptionId: subId, chargeDate }).onConflictDoNothing();
   else await db.delete(payments).where(and(eq(payments.subscriptionId, subId), eq(payments.chargeDate, chargeDate)));
@@ -325,28 +348,34 @@ const pushSubSchema = z.object({
 
 /** Stores (or refreshes) this device's push subscription. */
 export async function savePushSubscription(raw: unknown, label: string): Promise<{ error?: string }> {
-  await requireAuth();
+  const user = await requireUser();
   const parsed = pushSubSchema.safeParse(raw);
   if (!parsed.success) return { error: "Nieprawidłowa subskrypcja push" };
   const { endpoint, keys } = parsed.data;
-  const row = { endpoint, p256dh: keys.p256dh, auth: keys.auth, label: label.slice(0, 80) || null };
+  // Upsert by endpoint: a browser that switches accounts moves its device to the new one.
+  const row = { userId: user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth, label: label.slice(0, 80) || null };
   await db.insert(pushSubscriptions).values(row).onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: row });
   revalidatePath("/settings/notifications");
   return {};
 }
 
 export async function removePushDevice(endpointOrId: string | number) {
-  await requireAuth();
+  const user = await requireUser();
   await db
     .delete(pushSubscriptions)
-    .where(typeof endpointOrId === "number" ? eq(pushSubscriptions.id, endpointOrId) : eq(pushSubscriptions.endpoint, endpointOrId));
+    .where(
+      and(
+        eq(pushSubscriptions.userId, user.id),
+        typeof endpointOrId === "number" ? eq(pushSubscriptions.id, endpointOrId) : eq(pushSubscriptions.endpoint, endpointOrId),
+      ),
+    );
   revalidatePath("/settings/notifications");
 }
 
 export async function sendTestPush(): Promise<{ error?: string; sent?: number; total?: number; details?: string[] }> {
-  await requireAuth();
+  const user = await requireUser();
   try {
-    const res = await sendToAll({
+    const res = await sendToUser(user.id, {
       title: "Powiadomienia działają",
       body: "Tak będą wyglądać przypomnienia o płatnościach.",
       url: "/settings/notifications",
@@ -365,18 +394,15 @@ export async function sendTestPush(): Promise<{ error?: string; sent?: number; t
 }
 
 export async function updateReminderSettings(formData: FormData) {
-  await requireAuth();
+  const user = await requireUser();
   const days = Math.min(14, Math.max(0, Number(formData.get("remindDaysBefore")) || 0));
   const sameDay = formData.get("remindSameDay") === "on";
-  await db
-    .insert(settings)
-    .values({ id: 1, remindDaysBefore: days, remindSameDay: sameDay })
-    .onConflictDoUpdate({ target: settings.id, set: { remindDaysBefore: days, remindSameDay: sameDay } });
+  await db.update(users).set({ remindDaysBefore: days, remindSameDay: sameDay }).where(eq(users.id, user.id));
   revalidatePath("/settings/notifications");
 }
 
 export async function setSubscriptionNotify(id: number, notify: boolean) {
-  await requireAuth();
+  await ownSub(id);
   await db.update(subscriptions).set({ notify }).where(eq(subscriptions.id, id));
   refreshAll();
 }
@@ -394,33 +420,43 @@ const cardSchema = z.object({
 });
 
 export async function saveCard(id: number | null, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requireAuth();
+  const user = await requireUser();
   const parsed = parseForm(cardSchema, formData);
   if (!parsed.data) return parsed.state;
-  if (id) await db.update(cards).set(parsed.data).where(eq(cards.id, id));
-  else await db.insert(cards).values(parsed.data);
+  if (id) await db.update(cards).set(parsed.data).where(and(eq(cards.id, id), eq(cards.userId, user.id)));
+  else await db.insert(cards).values({ ...parsed.data, userId: user.id });
   refreshAll();
   redirect("/cards");
 }
 
 export async function deleteCard(id: number) {
-  await requireAuth();
-  await db.delete(cards).where(eq(cards.id, id));
+  const user = await requireUser();
+  await db.delete(cards).where(and(eq(cards.id, id), eq(cards.userId, user.id)));
   refreshAll();
   redirect("/cards");
 }
 
-export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
-  const password = String(formData.get("password") ?? "");
-  if (!passwordMatches(password)) {
-    await new Promise((r) => setTimeout(r, 800));
-    return { error: "Złe hasło" };
-  }
-  await startSession();
-  redirect("/");
+export async function logout() {
+  await endSession();
+  redirect("/login");
 }
 
-export async function logout() {
+/* ── Account ────────────────────────────────────────────────────────────────────────────── */
+
+/** New calendar URL; the old one stops working (e.g. it was shared by mistake). */
+export async function resetCalendarLink() {
+  const user = await requireUser();
+  await rotateIcsToken(user.id);
+  revalidatePath("/settings");
+}
+
+/** Deletes the account and everything in it. The confirmation must be the account's email. */
+export async function deleteAccount(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  if (String(formData.get("confirm") ?? "").trim().toLowerCase() !== user.email) {
+    return { fieldErrors: { confirm: "Wpisz dokładnie swój adres e-mail" } };
+  }
+  await deleteUser(user.id);
   await endSession();
   redirect("/login");
 }

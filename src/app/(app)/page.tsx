@@ -12,6 +12,7 @@ import { btn, Empty, SectionTitle } from "@/components/ui";
 import { dashboardStats, isScope, loadAll, sum } from "@/lib/data";
 import { money } from "@/lib/format";
 import { plural } from "@/lib/billing";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,9 @@ const alertIcon = { trial: Hourglass, card: CreditCard, ending: CalendarClock, f
 export default async function Dashboard(props: PageProps<"/">) {
   const { typ } = await props.searchParams;
   const scope = isScope(typ) ? typ : undefined;
-  const data = await loadAll();
-  after(() => backfillLogos());
+  const user = await requireUser();
+  const data = await loadAll(user.id);
+  after(() => backfillLogos(user.id));
   const st = dashboardStats(data, scope);
   const scopesInUse = new Set(data.subs.map((s) => s.scope));
 

@@ -4,13 +4,15 @@ import { CardForm } from "@/components/card-form";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PageHeader } from "@/components/ui";
 import { getCard } from "@/lib/data";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Metoda płatności" };
 
 export default async function EditCard(props: PageProps<"/cards/[id]/edit">) {
   const id = Number((await props.params).id);
-  const card = await getCard(id);
+  const user = await requireUser();
+  const card = await getCard(user.id, id);
   if (!card) notFound();
   return (
     <div>

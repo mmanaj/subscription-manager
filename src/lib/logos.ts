@@ -117,13 +117,12 @@ export async function refreshLogo(subId: number): Promise<boolean> {
   return !!logo;
 }
 
-
-/** Looks up logos for subscriptions never checked yet (e.g. added before logos existed). */
-export async function backfillLogos(limit = 4) {
+/** Looks up logos for this user's subscriptions never checked yet (e.g. added before logos existed). */
+export async function backfillLogos(userId: number, limit = 4) {
   const pending = await db
     .select({ id: subscriptions.id })
     .from(subscriptions)
-    .where(sql`${subscriptions.logoCheckedAt} is null and not ${subscriptions.logoCustom}`)
+    .where(sql`${subscriptions.userId} = ${userId} and ${subscriptions.logoCheckedAt} is null and not ${subscriptions.logoCustom}`)
     .limit(limit);
   for (const { id } of pending) await refreshLogo(id).catch(() => undefined);
 }

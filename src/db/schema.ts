@@ -1,6 +1,7 @@
 import {
   boolean,
   date,
+  index,
   integer,
   numeric,
   pgEnum,
@@ -17,9 +18,32 @@ export const paymentMethodKind = pgEnum("payment_method_kind", ["card", "account
 export const subscriptionScope = pgEnum("subscription_scope", ["personal", "shared", "business"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "paused", "cancelled"]);
 
+/** One row per Google account. Everything else hangs off user_id. */
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  /** Google's stable account id (`sub` claim) — email can change, this can't */
+  googleSub: text("google_sub").notNull().unique(),
+  email: text("email").notNull(),
+  name: text("name"),
+  picture: text("picture"),
+  /** Secret part of this user's .ics calendar feed URL */
+  icsToken: text("ics_token").notNull().unique(),
+  remindDaysBefore: integer("remind_days_before").notNull().default(3),
+  remindSameDay: boolean("remind_same_day").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Owner column for top-level tables. Nullable only because rows from the single-user era have no
+ * owner until OWNER_EMAIL signs in and claims them (see claimLegacyData).
+ */
+const owner = () => integer("user_id").references(() => users.id, { onDelete: "cascade" });
+
 /** Payment methods: cards and bank accounts (table name kept for compatibility). */
 export const cards = pgTable("cards", {
   id: serial("id").primaryKey(),
+  userId: owner(),
   kind: paymentMethodKind("kind").notNull().default("card"),
   name: text("name").notNull(),
   brand: text("brand"),
@@ -28,10 +52,11 @@ export const cards = pgTable("cards", {
   expYear: integer("exp_year"),
   color: text("color").notNull().default("forest"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index("cards_user").on(t.userId)]);
 
 export const subscriptions = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
+  userId: owner(),
   name: text("name").notNull(),
   category: text("category"),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
@@ -65,13 +90,18 @@ export const subscriptions = pgTable("subscriptions", {
   notify: boolean("notify").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index("subscriptions_user").on(t.userId)]);
 
-export const categories = pgTable("categories", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const categories = pgTable(
+  "categories",
+  {
+    id: serial("id").primaryKey(),
+    userId: owner(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("categories_user_name").on(t.userId, t.name)],
+);
 
 /** "From effectiveDate the price is newAmount (it was oldAmount)". Current price = subscriptions.amount. */
 export const priceChanges = pgTable("price_changes", {
@@ -100,6 +130,7 @@ export const logos = pgTable("logos", {
 /** One row per browser/device that allowed notifications. */
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),
+  userId: owner(),
   endpoint: text("endpoint").notNull().unique(),
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
@@ -137,13 +168,14 @@ export const payments = pgTable(
   (t) => [uniqueIndex("payments_once").on(t.subscriptionId, t.chargeDate)],
 );
 
-/** Single-row app settings. */
+/** Single-row settings from the single-user era; copied onto the owner's user row when claimed. */
 export const settings = pgTable("settings", {
   id: integer("id").primaryKey().default(1),
   remindDaysBefore: integer("remind_days_before").notNull().default(3),
   remindSameDay: boolean("remind_same_day").notNull().default(true),
 });
 
+export type User = typeof users.$inferSelect;
 export type Card = typeof cards.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type PaymentMethodKind = (typeof paymentMethodKind.enumValues)[number];

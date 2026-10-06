@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { pushSubscriptions, settings } from "@/db/schema";
+import { pushSubscriptions } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
 import { Switch } from "@/components/switch";
 import { ScopeBadge } from "@/components/scope";
 import { Avatar, btn, PageHeader } from "@/components/ui";
@@ -16,13 +17,13 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Powiadomienia" };
 
 export default async function NotificationsPage() {
-  const [[cfg], devices, { subs, today }] = await Promise.all([
-    db.select().from(settings),
-    db.select().from(pushSubscriptions).orderBy(asc(pushSubscriptions.createdAt)),
-    loadAll(),
+  const user = await requireUser();
+  const [devices, { subs, today }] = await Promise.all([
+    db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, user.id)).orderBy(asc(pushSubscriptions.createdAt)),
+    loadAll(user.id),
   ]);
-  const daysBefore = cfg?.remindDaysBefore ?? 3;
-  const sameDay = cfg?.remindSameDay ?? true;
+  const daysBefore = user.remindDaysBefore;
+  const sameDay = user.remindSameDay;
   const live = subs.filter((s) => s.live).sort((a, b) => Number(b.notify) - Number(a.notify) || a.name.localeCompare(b.name, "pl"));
   const onCount = live.filter((s) => s.notify).length;
   const diag = pushDiagnostics();

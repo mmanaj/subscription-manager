@@ -8,7 +8,6 @@ import { cleanEnv as clean, normalizeSubject } from "./push-subject";
 export type PushPayload = { title: string; body: string; url?: string; tag?: string };
 export type DeviceResult = { id: number; label: string | null; ok: boolean; status?: number; detail?: string };
 
-
 function vapid() {
   const publicKey = clean(process.env.VAPID_PUBLIC_KEY);
   const privateKey = clean(process.env.VAPID_PRIVATE_KEY);
@@ -45,12 +44,12 @@ export function pushDiagnostics() {
   };
 }
 
-/** Sends to every registered device; prunes devices the push service says are gone. */
-export async function sendToAll(payload: PushPayload): Promise<{ sent: number; failed: number; results: DeviceResult[] }> {
+/** Sends to every device of one user; prunes devices the push service says are gone. */
+export async function sendToUser(userId: number, payload: PushPayload): Promise<{ sent: number; failed: number; results: DeviceResult[] }> {
   if (!pushConfigured()) return { sent: 0, failed: 0, results: [] };
   const v = vapid();
   webpush.setVapidDetails(v.subject, v.publicKey, v.privateKey);
-  const devices = await db.select().from(pushSubscriptions);
+  const devices = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
   const results = await Promise.all(
     devices.map(async (d): Promise<DeviceResult> => {
       try {

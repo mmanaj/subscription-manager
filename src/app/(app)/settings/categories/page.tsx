@@ -1,12 +1,14 @@
 import { PageHeader } from "@/components/ui";
 import { categoryUsage, listCategories } from "@/lib/categories";
 import { CategoryRow } from "./category-row";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Kategorie" };
 
 export default async function CategoriesPage() {
-  const [names, usage] = await Promise.all([listCategories(), categoryUsage()]);
+  const user = await requireUser();
+  const [names, usage] = await Promise.all([listCategories(user.id), categoryUsage(user.id)]);
   return (
     <div className="max-w-2xl">
       <PageHeader title="Kategorie" back="/settings" />

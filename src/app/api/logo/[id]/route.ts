@@ -1,11 +1,18 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { logos } from "@/db/schema";
+import { logos, subscriptions } from "@/db/schema";
+import { currentUser } from "@/lib/auth";
 
 export async function GET(_req: Request, ctx: RouteContext<"/api/logo/[id]">) {
   const id = Number((await ctx.params).id);
-  if (!Number.isInteger(id)) return new Response("Not found", { status: 404 });
-  const [logo] = await db.select().from(logos).where(eq(logos.subscriptionId, id));
+  const user = await currentUser();
+  if (!user || !Number.isInteger(id)) return new Response("Not found", { status: 404 });
+  const [row] = await db
+    .select({ logo: logos })
+    .from(logos)
+    .innerJoin(subscriptions, eq(subscriptions.id, logos.subscriptionId))
+    .where(and(eq(logos.subscriptionId, id), eq(subscriptions.userId, user.id)));
+  const logo = row?.logo;
   if (!logo) return new Response("Not found", { status: 404 });
   return new Response(Buffer.from(logo.data, "base64"), {
     headers: {
