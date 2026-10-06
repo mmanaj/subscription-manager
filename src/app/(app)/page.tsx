@@ -141,12 +141,12 @@ export default async function Dashboard(props: PageProps<"/">) {
         <section className="flex min-w-0 flex-col gap-14 lg:col-start-2 lg:row-start-2">
           {!scope && st.byScope.length > 1 && (
             <div>
-              <SectionTitle>Czyje</SectionTitle>
+              <SectionTitle>Typ wydatków</SectionTitle>
               <ScopeSplit data={st.byScope} total={st.monthly} />
             </div>
           )}
           <div>
-            <SectionTitle>Na co idzie</SectionTitle>
+            <SectionTitle>Kategorie</SectionTitle>
             <CategoryRanking
               data={st.byCategory}
               total={st.monthly}
@@ -154,7 +154,7 @@ export default async function Dashboard(props: PageProps<"/">) {
             />
           </div>
           <div>
-            <SectionTitle>Z czego płacę</SectionTitle>
+            <SectionTitle>Źródła płatności</SectionTitle>
             <CardTiles data={st.byCard} total={st.monthly} />
           </div>
           <p className="text-[13px] text-muted">
