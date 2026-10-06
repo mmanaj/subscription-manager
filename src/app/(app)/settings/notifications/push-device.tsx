@@ -46,14 +46,20 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
   const enable = () =>
     start(async () => {
       setMsg(undefined);
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") return setState(perm === "denied" ? "denied" : "off");
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) });
-      const res = await savePushSubscription(sub.toJSON(), deviceLabel());
-      if (res.error) return setMsg(res.error);
-      setState("on");
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") return setState(perm === "denied" ? "denied" : "off");
+        await navigator.serviceWorker.register("/sw.js");
+        const reg = await navigator.serviceWorker.ready;
+        // A stale subscription made with an old key would make subscribe() fail — drop it first.
+        await (await reg.pushManager.getSubscription())?.unsubscribe();
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) });
+        const res = await savePushSubscription(sub.toJSON(), deviceLabel());
+        if (res.error) return setMsg(res.error);
+        setState("on");
+      } catch (e) {
+        setMsg(`Nie udało się włączyć: ${(e as Error).message || e}`);
+      }
     });
 
   const disable = () =>
@@ -70,7 +76,8 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
   const test = () =>
     start(async () => {
       const res = await sendTestPush();
-      setMsg(res.error ?? `Wysłano na ${res.sent} ${res.sent === 1 ? "urządzenie" : "urządzenia"}.`);
+      const head = res.error ?? `Wysłano na ${res.sent} ${res.sent === 1 ? "urządzenie" : "urządzenia"}. Jeśli nic nie przyszło, sprawdź tryb skupienia i ustawienia powiadomień aplikacji.`;
+      setMsg([head, ...(res.details ?? [])].join("\n"));
     });
 
   return (
@@ -123,7 +130,7 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
           </>
         )}
       </div>
-      {msg && <p className="text-sm text-muted">{msg}</p>}
+      {msg && <p className="whitespace-pre-wrap break-words text-sm text-muted">{msg}</p>}
     </div>
   );
 }

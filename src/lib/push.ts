@@ -5,42 +5,76 @@ import { db } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
 
 export type PushPayload = { title: string; body: string; url?: string; tag?: string };
+export type DeviceResult = { id: number; label: string | null; ok: boolean; status?: number; detail?: string };
 
-export function pushConfigured() {
-  return !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+// Values pasted into Vercel often carry stray spaces/newlines or quotes — normalise them.
+const clean = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
+
+function vapid() {
+  const publicKey = clean(process.env.VAPID_PUBLIC_KEY);
+  const privateKey = clean(process.env.VAPID_PRIVATE_KEY);
+  let subject = clean(process.env.VAPID_SUBJECT).replace(/\s+/g, "");
+  if (!subject) subject = "mailto:owner@example.com";
+  else if (!/^(mailto:|https:\/\/)/.test(subject)) subject = `mailto:${subject}`;
+  return { publicKey, privateKey, subject };
 }
 
-function configure() {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:owner@example.com",
-    process.env.VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!,
-  );
+export function publicVapidKey() {
+  return vapid().publicKey;
+}
+
+export function pushConfigured() {
+  const v = vapid();
+  return !!(v.publicKey && v.privateKey);
+}
+
+/** What's set up and what isn't — shown in the notification centre to make failures explainable. */
+export function pushDiagnostics() {
+  const v = vapid();
+  let keysValid = false;
+  let keysError: string | undefined;
+  try {
+    webpush.setVapidDetails(v.subject, v.publicKey, v.privateKey);
+    keysValid = true;
+  } catch (e) {
+    keysError = (e as Error).message;
+  }
+  return {
+    publicKey: !!v.publicKey,
+    privateKey: !!v.privateKey,
+    subject: v.subject,
+    keysValid,
+    keysError,
+    cronSecret: !!clean(process.env.CRON_SECRET),
+  };
 }
 
 /** Sends to every registered device; prunes devices the push service says are gone. */
-export async function sendToAll(payload: PushPayload): Promise<{ sent: number; failed: number }> {
-  if (!pushConfigured()) return { sent: 0, failed: 0 };
-  configure();
+export async function sendToAll(payload: PushPayload): Promise<{ sent: number; failed: number; results: DeviceResult[] }> {
+  if (!pushConfigured()) return { sent: 0, failed: 0, results: [] };
+  const v = vapid();
+  webpush.setVapidDetails(v.subject, v.publicKey, v.privateKey);
   const devices = await db.select().from(pushSubscriptions);
-  let sent = 0;
-  let failed = 0;
-  await Promise.all(
-    devices.map(async (d) => {
+  const results = await Promise.all(
+    devices.map(async (d): Promise<DeviceResult> => {
       try {
         await webpush.sendNotification(
           { endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } },
           JSON.stringify(payload),
-          { TTL: 60 * 60 * 24 },
+          { TTL: 60 * 60 * 24, urgency: "high" },
         );
-        sent++;
         await db.update(pushSubscriptions).set({ lastSentAt: sql`now()` }).where(eq(pushSubscriptions.id, d.id));
+        return { id: d.id, label: d.label, ok: true };
       } catch (e) {
-        failed++;
-        const status = (e as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, d.id));
+        const err = e as { statusCode?: number; body?: string; message?: string };
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, d.id));
+        }
+        console.error("push failed", d.label, err.statusCode, err.body ?? err.message);
+        return { id: d.id, label: d.label, ok: false, status: err.statusCode, detail: (err.body || err.message || "").slice(0, 200) };
       }
     }),
   );
-  return { sent, failed };
+  const sent = results.filter((r) => r.ok).length;
+  return { sent, failed: results.length - sent, results };
 }

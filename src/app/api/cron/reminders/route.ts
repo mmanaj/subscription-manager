@@ -9,7 +9,7 @@ import { dueReminders } from "@/lib/reminders";
 export const dynamic = "force-dynamic";
 
 function authorized(req: Request) {
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;
   const got = Buffer.from(req.headers.get("authorization") ?? "");
   const want = Buffer.from(`Bearer ${secret}`);

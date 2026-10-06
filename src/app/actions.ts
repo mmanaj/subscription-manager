@@ -327,17 +327,25 @@ export async function removePushDevice(endpointOrId: string | number) {
   revalidatePath("/settings/notifications");
 }
 
-export async function sendTestPush(): Promise<{ error?: string; sent?: number }> {
+export async function sendTestPush(): Promise<{ error?: string; sent?: number; details?: string[] }> {
   await requireAuth();
-  const res = await sendToAll({
-    title: "Powiadomienia działają",
-    body: "Tak będą wyglądać przypomnienia o płatnościach.",
-    url: "/settings/notifications",
-    tag: "test",
-  });
-  if (!res.sent) return { error: "Nie udało się wysłać — sprawdź, czy to urządzenie ma włączone powiadomienia." };
-  revalidatePath("/settings/notifications");
-  return { sent: res.sent };
+  try {
+    const res = await sendToAll({
+      title: "Powiadomienia działają",
+      body: "Tak będą wyglądać przypomnienia o płatnościach.",
+      url: "/settings/notifications",
+      tag: "test",
+    });
+    revalidatePath("/settings/notifications");
+    const details = res.results
+      .filter((r) => !r.ok)
+      .map((r) => `${r.label ?? "Urządzenie"}: ${r.status ? `HTTP ${r.status}` : "błąd"}${r.detail ? ` — ${r.detail}` : ""}${r.status === 404 || r.status === 410 ? " (usunięte — włącz ponownie)" : ""}`);
+    if (!res.results.length) return { error: "Brak zarejestrowanych urządzeń. Włącz powiadomienia na tym urządzeniu." };
+    if (!res.sent) return { error: "Serwer push odrzucił wysyłkę.", details };
+    return { sent: res.sent, details };
+  } catch (e) {
+    return { error: `Błąd konfiguracji: ${(e as Error).message}` };
+  }
 }
 
 export async function updateReminderSettings(formData: FormData) {

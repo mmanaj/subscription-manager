@@ -8,7 +8,7 @@ import { Avatar, btn, PageHeader } from "@/components/ui";
 import { updateReminderSettings } from "@/app/actions";
 import { loadAll } from "@/lib/data";
 import { dateShort, relative } from "@/lib/format";
-import { pushConfigured } from "@/lib/push";
+import { pushConfigured, pushDiagnostics, publicVapidKey } from "@/lib/push";
 import { PushDevice } from "./push-device";
 import { RemoveDevice, SubNotifyToggle } from "./toggles";
 
@@ -25,6 +25,15 @@ export default async function NotificationsPage() {
   const sameDay = cfg?.remindSameDay ?? true;
   const live = subs.filter((s) => s.live).sort((a, b) => Number(b.notify) - Number(a.notify) || a.name.localeCompare(b.name, "pl"));
   const onCount = live.filter((s) => s.notify).length;
+  const diag = pushDiagnostics();
+  const checks: [string, boolean, string?][] = [
+    ["Klucz publiczny (VAPID_PUBLIC_KEY)", diag.publicKey],
+    ["Klucz prywatny (VAPID_PRIVATE_KEY)", diag.privateKey],
+    ["Klucze poprawne", diag.keysValid, diag.keysError],
+    ["Nadawca (VAPID_SUBJECT)", true, diag.subject],
+    ["Zadanie dzienne (CRON_SECRET)", diag.cronSecret],
+    ["Zarejestrowane urządzenia", devices.length > 0, String(devices.length)],
+  ];
 
   return (
     <div className="flex max-w-2xl flex-col gap-12">
@@ -38,7 +47,7 @@ export default async function NotificationsPage() {
       ) : (
         <section className="-mt-4 flex flex-col gap-4">
           <h2 className="heading text-lg">To urządzenie</h2>
-          <PushDevice publicKey={process.env.VAPID_PUBLIC_KEY!} />
+          <PushDevice publicKey={publicVapidKey()} />
           {devices.length > 0 && (
             <div>
               <p className="caption mb-2">Urządzenia z powiadomieniami</p>
@@ -60,6 +69,23 @@ export default async function NotificationsPage() {
           )}
         </section>
       )}
+
+      <details className="group -mt-6">
+        <summary className="cursor-pointer list-none text-sm text-muted [&::-webkit-details-marker]:hidden">
+          <span className="underline decoration-hairline underline-offset-4 group-open:hidden">Pokaż diagnostykę</span>
+          <span className="hidden underline decoration-hairline underline-offset-4 group-open:inline">Ukryj diagnostykę</span>
+        </summary>
+        <ul className="mt-3 divide-y divide-hairline border-y border-hairline text-sm">
+          {checks.map(([label, ok, note]) => (
+            <li key={label} className="flex items-start justify-between gap-3 py-2">
+              <span className="text-ink">{label}</span>
+              <span className={`min-w-0 break-all text-right ${ok ? "text-muted" : "text-ember"}`}>
+                {ok ? "✓" : "✗"} {note}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
 
       <section className="flex flex-col gap-4 border-t border-hairline pt-10">
         <h2 className="heading text-lg">Kiedy przypominać</h2>
