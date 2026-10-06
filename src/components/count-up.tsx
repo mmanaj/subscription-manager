@@ -31,7 +31,8 @@ export function CountUpMoney({ value, className = "", currency = "zł" }: { valu
     const duration = first ? 900 : 450;
     let frame = requestAnimationFrame(function tick(now) {
       const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 4); // strong ease-out
+      // Ease-in-out (cubic): slow start, fast middle, gentle landing.
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       const v = from + (value - from) * eased;
       current.current = v;
       setShown(v);
