@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink, Pencil } from "lucide-react";
+import { Bell, ExternalLink, Pencil } from "lucide-react";
 import { cancelSubscription, deleteSubscription, setStatus } from "@/app/actions";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PriceHistory } from "@/components/price-history";
@@ -61,6 +61,11 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
               {status}
               {s.scope !== "personal" && <Tag tone="outline">{SCOPES[s.scope].label.toLowerCase()}</Tag>}
               {s.category && <Tag tone="outline">{s.category}</Tag>}
+              {s.notify && (
+                <Tag tone="outline">
+                  <Bell size={11} className="mr-1" /> przypomnienia
+                </Tag>
+              )}
             </div>
           </div>
         </div>

@@ -27,6 +27,7 @@ npm test                     # testy logiki rozliczeń
 1. Importuj repo w Vercelu.
 2. Storage → dodaj **Neon Postgres** (Marketplace) — ustawi `DATABASE_URL` i `DATABASE_URL_UNPOOLED`.
 3. Environment Variables: `APP_PASSWORD`, `AUTH_SECRET` (`openssl rand -base64 32`), `ICS_TOKEN` (`openssl rand -hex 16`), opcjonalnie `APP_TZ` (domyślnie `Europe/Warsaw`).
+   Powiadomienia push: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`), `VAPID_SUBJECT` (`mailto:twój@email`), `CRON_SECRET` (`openssl rand -hex 24`). Dzienne zadanie przypomnień to Vercel Cron z `vercel.json` (07:00 UTC).
 4. Deploy (po dodaniu bazy lub zmiennych: Deployments → ⋯ → Redeploy). Skrypt `vercel-build` sam odpala migracje przed buildem; bez bazy je pomija, a aplikacja pokazuje ekran z brakującymi zmiennymi.
 
 Zmiana schematu: edytuj `src/db/schema.ts` → `npm run db:generate` → commit pliku z `drizzle/`.

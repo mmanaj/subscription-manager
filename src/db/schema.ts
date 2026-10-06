@@ -8,6 +8,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -53,6 +54,8 @@ export const subscriptions = pgTable("subscriptions", {
   logoCheckedAt: timestamp("logo_checked_at", { withTimezone: true }),
   /** User uploaded their own image — never overwritten automatically */
   logoCustom: boolean("logo_custom").notNull().default(false),
+  /** Send push reminders before/on payment day (for payments made by hand) */
+  notify: boolean("notify").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -87,8 +90,43 @@ export const logos = pgTable("logos", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** One row per browser/device that allowed notifications. */
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  label: text("label"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
+});
+
+/** Reminders already sent, so a re-run of the daily job never notifies twice. */
+export const notificationLog = pgTable(
+  "notification_log",
+  {
+    id: serial("id").primaryKey(),
+    subscriptionId: integer("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: "cascade" }),
+    chargeDate: date("charge_date").notNull(),
+    kind: text("kind").notNull(), // "before" | "day"
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("notification_log_once").on(t.subscriptionId, t.chargeDate, t.kind)],
+);
+
+/** Single-row app settings. */
+export const settings = pgTable("settings", {
+  id: integer("id").primaryKey().default(1),
+  remindDaysBefore: integer("remind_days_before").notNull().default(3),
+  remindSameDay: boolean("remind_same_day").notNull().default(true),
+});
+
 export type Card = typeof cards.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
+export type PushSub = typeof pushSubscriptions.$inferSelect;
+export type Settings = typeof settings.$inferSelect;
 export type PriceChange = typeof priceChanges.$inferSelect;
 export type SubscriptionScope = (typeof subscriptionScope.enumValues)[number];
 export type IntervalUnit = (typeof intervalUnit.enumValues)[number];

@@ -5,6 +5,7 @@ import type { Card, IntervalUnit, Subscription, SubscriptionScope } from "@/db/s
 import type { FormState } from "@/app/actions";
 import { Avatar } from "./ui";
 import { CategoryPicker } from "./category-picker";
+import { Switch } from "./switch";
 import { ColorPicker, Field, inputCls, Submit, submitWithoutReset } from "./form-bits";
 
 const SCOPE_OPTIONS: { value: SubscriptionScope; label: string; hint: string }[] = [
@@ -217,6 +218,16 @@ export function SubscriptionForm({
       </Field>
 
       <CategoryPicker name="category" initial={sub?.category ?? null} options={categories} />
+
+      <label className="flex items-start justify-between gap-4 rounded-[var(--radius-field)] bg-canvas p-4">
+        <span>
+          <span className="block text-sm font-medium text-ink">Przypominaj o płatności</span>
+          <span className="mt-0.5 block text-xs text-muted">
+            Dla płatności robionych ręcznie: powiadomienie push przed terminem i w dniu płatności. Ustawienia w Więcej → Powiadomienia.
+          </span>
+        </span>
+        <Switch name="notify" defaultChecked={sub?.notify ?? false} label="Przypominaj o płatności" />
+      </label>
 
       <Field label="Status">
         <select name="status" defaultValue={sub?.status ?? "active"} className={inputCls}>

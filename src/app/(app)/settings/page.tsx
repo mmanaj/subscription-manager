@@ -19,13 +19,25 @@ export default async function SettingsPage() {
     <div className="flex max-w-2xl flex-col gap-12">
       <PageHeader title="Więcej" />
 
-      <Link href="/settings/categories" className="-mx-3 flex items-center justify-between rounded-[var(--radius-field)] border-y border-hairline px-3 py-4 transition hover:bg-surface-alt">
-        <span>
-          <span className="block font-medium text-ink">Kategorie</span>
-          <span className="block text-sm text-muted">Zmień nazwę lub usuń</span>
-        </span>
-        <ChevronRight className="text-ink" />
-      </Link>
+      <ul className="divide-y divide-hairline border-y border-hairline">
+        {[
+          { href: "/settings/notifications", title: "Powiadomienia", sub: "Przypomnienia push o płatnościach" },
+          { href: "/settings/categories", title: "Kategorie", sub: "Zmień nazwę lub usuń" },
+        ].map((l) => (
+          <li key={l.href}>
+            <Link
+              href={l.href}
+              className="-mx-3 flex items-center justify-between rounded-[var(--radius-field)] px-3 py-4 transition-colors hover:bg-surface-alt"
+            >
+              <span>
+                <span className="block font-medium text-ink">{l.title}</span>
+                <span className="block text-sm text-muted">{l.sub}</span>
+              </span>
+              <ChevronRight className="text-muted" size={18} />
+            </Link>
+          </li>
+        ))}
+      </ul>
 
       <section className="flex flex-col gap-3">
         <h2 className="heading text-lg">Przypomnienia w kalendarzu</h2>

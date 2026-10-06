@@ -11,6 +11,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Everything except login, the token-protected calendar feed, PWA/static assets
-    "/((?!login|api/calendar|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest).*)",
+    "/((?!login|api/calendar|api/cron|sw.js|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest).*)",
   ],
 };

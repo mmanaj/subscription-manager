@@ -6,13 +6,14 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { cards, categories, priceChanges, subscriptions } from "@/db/schema";
+import { cards, categories, priceChanges, pushSubscriptions, settings, subscriptions } from "@/db/schema";
 import { endSession, passwordMatches, requireAuth, startSession } from "@/lib/auth";
 import { nextCharge } from "@/lib/billing";
 import { addDays, today } from "@/lib/dates";
 import { amountOn } from "@/lib/price";
 import { normalizeDomain } from "@/lib/logo-domains";
 import { fetchLogo, refreshLogo, storeLogo } from "@/lib/logos";
+import { sendToAll } from "@/lib/push";
 
 export type FormState = { ok?: boolean; error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -44,6 +45,10 @@ const subscriptionSchema = z
     scope: z.enum(["personal", "shared", "business"]).default("personal"),
     priceMode: z.enum(["change", "fix"]).default("change"),
     priceFrom: optDate,
+    notify: z
+      .string()
+      .optional()
+      .transform((v) => v === "on"),
     cardId: optStr.transform((v) => (v ? Number(v) : null)),
     category: optStr,
     splitWith: z.coerce.number().int().min(1).max(20),
@@ -292,6 +297,63 @@ export async function deleteCategory(name: string) {
     await tx.update(subscriptions).set({ category: null }).where(sql`trim(${subscriptions.category}) = ${name}`);
     await tx.delete(categories).where(eq(categories.name, name));
   });
+  refreshAll();
+}
+
+/* ── Push notifications ─────────────────────────────────────────────────────────────────── */
+
+const pushSubSchema = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+});
+
+/** Stores (or refreshes) this device's push subscription. */
+export async function savePushSubscription(raw: unknown, label: string): Promise<{ error?: string }> {
+  await requireAuth();
+  const parsed = pushSubSchema.safeParse(raw);
+  if (!parsed.success) return { error: "Nieprawidłowa subskrypcja push" };
+  const { endpoint, keys } = parsed.data;
+  const row = { endpoint, p256dh: keys.p256dh, auth: keys.auth, label: label.slice(0, 80) || null };
+  await db.insert(pushSubscriptions).values(row).onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: row });
+  revalidatePath("/settings/notifications");
+  return {};
+}
+
+export async function removePushDevice(endpointOrId: string | number) {
+  await requireAuth();
+  await db
+    .delete(pushSubscriptions)
+    .where(typeof endpointOrId === "number" ? eq(pushSubscriptions.id, endpointOrId) : eq(pushSubscriptions.endpoint, endpointOrId));
+  revalidatePath("/settings/notifications");
+}
+
+export async function sendTestPush(): Promise<{ error?: string; sent?: number }> {
+  await requireAuth();
+  const res = await sendToAll({
+    title: "Powiadomienia działają",
+    body: "Tak będą wyglądać przypomnienia o płatnościach.",
+    url: "/settings/notifications",
+    tag: "test",
+  });
+  if (!res.sent) return { error: "Nie udało się wysłać — sprawdź, czy to urządzenie ma włączone powiadomienia." };
+  revalidatePath("/settings/notifications");
+  return { sent: res.sent };
+}
+
+export async function updateReminderSettings(formData: FormData) {
+  await requireAuth();
+  const days = Math.min(14, Math.max(0, Number(formData.get("remindDaysBefore")) || 0));
+  const sameDay = formData.get("remindSameDay") === "on";
+  await db
+    .insert(settings)
+    .values({ id: 1, remindDaysBefore: days, remindSameDay: sameDay })
+    .onConflictDoUpdate({ target: settings.id, set: { remindDaysBefore: days, remindSameDay: sameDay } });
+  revalidatePath("/settings/notifications");
+}
+
+export async function setSubscriptionNotify(id: number, notify: boolean) {
+  await requireAuth();
+  await db.update(subscriptions).set({ notify }).where(eq(subscriptions.id, id));
   refreshAll();
 }
 
