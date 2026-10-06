@@ -4,9 +4,10 @@ import { useRef, useState, useTransition } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import { deleteCategory, renameCategory } from "@/app/actions";
 import { inputCls } from "@/components/form-bits";
-import { plural } from "@/lib/billing";
+import { useI18n } from "@/components/i18n-provider";
 
 export function CategoryRow({ name, count }: { name: string; count: number }) {
+  const { t } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState<string>();
@@ -21,10 +22,7 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
   }
 
   function remove() {
-    const msg = count
-      ? `Usunąć „${name}”? ${count} ${plural(count, ["subskrypcja zostanie", "subskrypcje zostaną", "subskrypcji zostanie"])} bez kategorii.`
-      : `Usunąć „${name}”?`;
-    if (window.confirm(msg)) start(() => deleteCategory(name));
+    if (window.confirm(t.categories.deleteConfirm(name, count))) start(() => deleteCategory(name));
   }
 
   return (
@@ -33,7 +31,7 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
       <span className="shrink-0 text-sm text-muted">{count || "—"}</span>
       <button
         type="button"
-        aria-label={`Zmień nazwę: ${name}`}
+        aria-label={t.categories.renameAria(name)}
         onClick={() => {
           setDraft(name);
           setError(undefined);
@@ -43,7 +41,7 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
       >
         <Pencil size={16} />
       </button>
-      <button type="button" aria-label={`Usuń: ${name}`} onClick={remove} className="rounded-full p-3 text-muted transition hover:bg-ember/10 hover:text-ember">
+      <button type="button" aria-label={t.categories.deleteAria(name)} onClick={remove} className="rounded-full p-3 text-muted transition hover:bg-ember/10 hover:text-ember">
         <Trash2 size={16} />
       </button>
 
@@ -53,8 +51,8 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-xl">Zmień nazwę</h2>
-          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
+          <h2 className="heading text-xl">{t.categories.renameTitle}</h2>
+          <button type="button" aria-label={t.common.close} onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
             <X size={22} />
           </button>
         </div>
@@ -67,16 +65,14 @@ export function CategoryRow({ name, count }: { name: string; count: number }) {
           <input autoFocus value={draft} maxLength={40} onChange={(e) => setDraft(e.target.value)} className={inputCls} aria-invalid={!!error} />
           {error && <p className="mt-2 text-sm text-ember">{error}</p>}
           {count > 0 && (
-            <p className="mt-2 text-sm text-muted">
-              Zmieni się też w {count} {plural(count, ["subskrypcji", "subskrypcjach", "subskrypcjach"])}.
-            </p>
+            <p className="mt-2 text-sm text-muted">{t.categories.willChangeIn(count)}</p>
           )}
           <button
             type="submit"
             disabled={!draft.trim() || pending}
             className="mt-5 w-full rounded-full bg-ink px-6 py-3.5 font-medium text-paper transition hover:bg-ink-soft disabled:opacity-50"
           >
-            {pending ? "Zapisuję…" : "Zapisz"}
+            {pending ? t.common.saving : t.common.save}
           </button>
         </form>
       </dialog>

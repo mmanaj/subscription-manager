@@ -1,17 +1,21 @@
 import { saveSubscription } from "@/app/actions";
 import { SubscriptionForm } from "@/components/subscription-form";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/page-header";
+import { getI18n } from "@/lib/i18n/server";
 import { listCategories } from "@/lib/categories";
 import { listCards } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Nowa subskrypcja" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.form.newMeta };
+}
 
 export default async function NewSubscription() {
-  const [cards, categories] = await Promise.all([listCards(), listCategories()]);
+  const [cards, categories, { t }] = await Promise.all([listCards(), listCategories(), getI18n()]);
   return (
     <div>
-      <PageHeader title="Nowa" back="/subscriptions" />
+      <PageHeader title={t.form.newTitle} back="/subscriptions" />
       <SubscriptionForm action={saveSubscription.bind(null, null)} cards={cards} categories={categories} />
     </div>
   );

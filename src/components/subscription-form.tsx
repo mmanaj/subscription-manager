@@ -7,20 +7,17 @@ import { Avatar } from "./ui";
 import { CategoryPicker } from "./category-picker";
 import { Switch } from "./switch";
 import { ColorPicker, Field, inputCls, Submit, submitWithoutReset } from "./form-bits";
+import { useI18n } from "./i18n-provider";
 
-const SCOPE_OPTIONS: { value: SubscriptionScope; label: string; hint: string }[] = [
-  { value: "personal", label: "Prywatna", hint: "Płacę tylko za siebie" },
-  { value: "shared", label: "Wspólna", hint: "Rodzinna / dzielona z kimś" },
-  { value: "business", label: "Firmowa", hint: "Koszt firmy" },
-];
+const SCOPE_OPTIONS: SubscriptionScope[] = ["personal", "shared", "business"];
 
 const toNum = (v: string) => Number(v.replace(/\s/g, "").replace(",", "."));
 
-const PRESETS: { label: string; count: number; unit: IntervalUnit }[] = [
-  { label: "Miesięcznie", count: 1, unit: "month" },
-  { label: "Rocznie", count: 1, unit: "year" },
-  { label: "Kwartalnie", count: 3, unit: "month" },
-  { label: "Tygodniowo", count: 1, unit: "week" },
+const PRESETS: { key: "monthly" | "yearly" | "quarterly" | "weekly"; count: number; unit: IntervalUnit }[] = [
+  { key: "monthly", count: 1, unit: "month" },
+  { key: "yearly", count: 1, unit: "year" },
+  { key: "quarterly", count: 3, unit: "month" },
+  { key: "weekly", count: 1, unit: "week" },
 ];
 
 export function SubscriptionForm({
@@ -34,6 +31,7 @@ export function SubscriptionForm({
   cards: Card[];
   categories: string[];
 }) {
+  const { t, locale } = useI18n();
   const [state, formAction, pending] = useActionState(action, undefined);
   const [, startTransition] = useTransition();
   const e = state?.fieldErrors ?? {};
@@ -42,7 +40,7 @@ export function SubscriptionForm({
   const [count, setCount] = useState(sub?.intervalCount ?? 1);
   const [unit, setUnit] = useState<IntervalUnit>(sub?.intervalUnit ?? "month");
   const [scope, setScope] = useState<SubscriptionScope>(sub?.scope ?? "personal");
-  const initialAmount = sub ? String(sub.amount).replace(".", ",") : "";
+  const initialAmount = sub ? (locale === "pl" ? String(sub.amount).replace(".", ",") : String(sub.amount)) : "";
   const [amount, setAmount] = useState(initialAmount);
   const [priceMode, setPriceMode] = useState<"change" | "fix">("change");
   const priceChanged = !!sub && amount.trim() !== "" && toNum(amount) !== Number(sub.amount);
@@ -56,12 +54,12 @@ export function SubscriptionForm({
     <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-2xl flex-col gap-6">
       <div className="flex items-center gap-4">
         <Avatar name={name || "?"} color={color} size={56} />
-        <Field label="Nazwa" error={e.name} className="flex-1">
+        <Field label={t.common.name} error={e.name} className="flex-1">
           <input
             name="name"
             required
             autoComplete="off"
-            placeholder="np. Netflix"
+            placeholder={t.form.namePh}
             value={name}
             onChange={(ev) => setName(ev.target.value)}
             aria-invalid={!!e.name}
@@ -71,19 +69,19 @@ export function SubscriptionForm({
       </div>
 
       <div className="grid grid-cols-[1fr_auto] gap-3">
-        <Field label="Kwota (całość)" error={e.amount}>
+        <Field label={t.form.amount} error={e.amount}>
           <input
             name="amount"
             required
             inputMode="decimal"
-            placeholder="49,99"
+            placeholder={t.form.amountPh}
             value={amount}
             onChange={(ev) => setAmount(ev.target.value)}
             aria-invalid={!!e.amount}
             className={`${inputCls} tabular text-lg font-medium`}
           />
         </Field>
-        <Field label="Waluta">
+        <Field label={t.form.currency}>
           <select name="currency" defaultValue={sub?.currency ?? "PLN"} className={inputCls}>
             {["PLN", "EUR", "USD", "GBP", "CHF"].map((c) => (
               <option key={c}>{c}</option>
@@ -98,8 +96,8 @@ export function SubscriptionForm({
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ["change", "Cena się zmieniła"],
-                ["fix", "Poprawiam błąd"],
+                ["change", t.form.priceChanged],
+                ["fix", t.form.priceFix],
               ] as const
             ).map(([v, label]) => (
               <button
@@ -115,36 +113,36 @@ export function SubscriptionForm({
             ))}
           </div>
           {priceMode === "change" ? (
-            <Field label="Nowa cena obowiązuje od" hint="Stara cena zostanie w historii. Może być data w przyszłości.">
+            <Field label={t.form.priceFrom} hint={t.form.priceFromHint}>
               <input name="priceFrom" type="date" defaultValue={new Intl.DateTimeFormat("en-CA").format(new Date())} className={inputCls} />
             </Field>
           ) : (
-            <p className="text-sm text-ink">Kwota zostanie nadpisana bez wpisu w historii cen.</p>
+            <p className="text-sm text-ink">{t.form.priceFixNote}</p>
           )}
         </div>
       )}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-sm font-medium text-ink">Czyja</legend>
+        <legend className="mb-1.5 text-sm font-medium text-ink">{t.form.scope}</legend>
         <input type="hidden" name="scope" value={scope} />
         <div className="grid grid-cols-3 gap-2">
           {SCOPE_OPTIONS.map((o) => (
             <button
-              key={o.value}
+              key={o}
               type="button"
-              aria-pressed={scope === o.value}
-              onClick={() => setScope(o.value)}
+              aria-pressed={scope === o}
+              onClick={() => setScope(o)}
               className={`flex flex-col items-start rounded-card px-3 py-2.5 text-left transition ${
-                scope === o.value ? "bg-ink text-paper" : "bg-canvas text-ink-soft hover:bg-canvas"
+                scope === o ? "bg-ink text-paper" : "bg-canvas text-ink-soft hover:bg-canvas"
               }`}
             >
-              <span className="text-sm font-medium">{o.label}</span>
-              <span className="text-[11px] leading-tight opacity-75">{o.hint}</span>
+              <span className="text-sm font-medium">{t.scope[o].one}</span>
+              <span className="text-[11px] leading-tight opacity-75">{t.scope[o].hint}</span>
             </button>
           ))}
         </div>
         {scope === "shared" ? (
-          <Field label="Dzielę koszt na (osób)" hint="Np. plan rodzinny na 4 — do sum liczy się 1/4 kwoty" error={e.splitWith} className="mt-2">
+          <Field label={t.form.splitWith} hint={t.form.splitHint} error={e.splitWith} className="mt-2">
             <input name="splitWith" type="number" min={1} max={20} inputMode="numeric" defaultValue={sub?.splitWith ?? 1} className={`${inputCls} w-24`} />
           </Field>
         ) : (
@@ -153,12 +151,12 @@ export function SubscriptionForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-sm font-medium text-ink">Odnawia się</legend>
+        <legend className="mb-1.5 text-sm font-medium text-ink">{t.form.renews}</legend>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button
               type="button"
-              key={p.label}
+              key={p.key}
               onClick={() => {
                 setCount(p.count);
                 setUnit(p.unit);
@@ -167,12 +165,12 @@ export function SubscriptionForm({
                 presetActive(p) ? "bg-ink text-paper" : "bg-canvas text-ink-soft hover:bg-canvas"
               }`}
             >
-              {p.label}
+              {t.form.presets[p.key]}
             </button>
           ))}
         </div>
         <div className="mt-1 flex items-center gap-2">
-          <span className={`text-sm ${custom ? "font-medium text-ink" : "text-muted"}`}>co</span>
+          <span className={`text-sm ${custom ? "font-medium text-ink" : "text-muted"}`}>{t.form.every}</span>
           <input
             name="intervalCount"
             type="number"
@@ -184,35 +182,36 @@ export function SubscriptionForm({
             className={`${inputCls} w-20 text-center`}
           />
           <select name="intervalUnit" value={unit} onChange={(ev) => setUnit(ev.target.value as IntervalUnit)} className={`${inputCls} w-auto`}>
-            <option value="day">dni</option>
-            <option value="week">tyg.</option>
-            <option value="month">mies.</option>
-            <option value="year">lat</option>
+            {(["day", "week", "month", "year"] as const).map((u) => (
+              <option key={u} value={u}>
+                {t.form.units[u]}
+              </option>
+            ))}
           </select>
         </div>
         {e.intervalCount && <span className="text-sm text-ember">{e.intervalCount}</span>}
       </fieldset>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Dzień płatności" hint="np. najbliższa" error={e.firstBillingDate}>
+        <Field label={t.form.billingDate} hint={t.form.billingHint} error={e.firstBillingDate}>
           <input name="firstBillingDate" type="date" defaultValue={sub?.firstBillingDate ?? ""} className={inputCls} aria-invalid={!!e.firstBillingDate} />
         </Field>
-        <Field label="Od kiedy" hint="opcjonalnie" error={e.startDate}>
+        <Field label={t.form.startDate} hint={t.common.optional} error={e.startDate}>
           <input name="startDate" type="date" defaultValue={sub?.startDate ?? ""} className={inputCls} />
         </Field>
       </div>
       <p className="-mt-3 text-xs text-muted">
-        Wystarczy jedna z dat. Kolejne płatności liczę od dnia płatności; data startu dolicza historię wstecz.
+        {t.form.datesNote}
       </p>
 
-      <Field label="Płatność" error={e.cardId}>
+      <Field label={t.form.payment} error={e.cardId}>
         <select name="cardId" defaultValue={sub?.cardId ?? ""} className={inputCls}>
-          <option value="">— brak —</option>
+          <option value="">{t.form.noPayment}</option>
           {cards.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
               {c.last4 ? ` ••${c.last4}` : ""}
-              {c.kind === "account" ? " (konto)" : ""}
+              {c.kind === "account" ? t.form.accountSuffix : ""}
             </option>
           ))}
         </select>
@@ -223,60 +222,58 @@ export function SubscriptionForm({
       <div className="divide-y divide-hairline rounded-[var(--radius-field)] bg-canvas px-4">
         <label className="flex items-start justify-between gap-4 py-4">
           <span>
-            <span className="block text-sm font-medium text-ink">Płacę ręcznie</span>
-            <span className="mt-0.5 block text-xs text-muted">
-              Przelew lub płatność, której nie pobiera karta. Każdą płatność odhaczasz jako opłaconą.
-            </span>
+            <span className="block text-sm font-medium text-ink">{t.form.manual}</span>
+            <span className="mt-0.5 block text-xs text-muted">{t.form.manualHint}</span>
           </span>
-          <Switch name="manual" defaultChecked={sub?.manual ?? false} label="Płacę ręcznie" />
+          <Switch name="manual" defaultChecked={sub?.manual ?? false} label={t.form.manual} />
         </label>
         <label className="flex items-start justify-between gap-4 py-4">
           <span>
-            <span className="block text-sm font-medium text-ink">Przypominaj o płatności</span>
-            <span className="mt-0.5 block text-xs text-muted">
-              Powiadomienie push przed terminem i w dniu płatności. Ustawienia w Więcej → Powiadomienia.
-            </span>
+            <span className="block text-sm font-medium text-ink">{t.form.notify}</span>
+            <span className="mt-0.5 block text-xs text-muted">{t.form.notifyHint}</span>
           </span>
-          <Switch name="notify" defaultChecked={sub?.notify ?? false} label="Przypominaj o płatności" />
+          <Switch name="notify" defaultChecked={sub?.notify ?? false} label={t.form.notify} />
         </label>
       </div>
 
-      <Field label="Status">
+      <Field label={t.form.status}>
         <select name="status" defaultValue={sub?.status ?? "active"} className={inputCls}>
-          <option value="active">Aktywna</option>
-          <option value="paused">Wstrzymana</option>
-          <option value="cancelled">Anulowana</option>
+          {(["active", "paused", "cancelled"] as const).map((v) => (
+            <option key={v} value={v}>
+              {t.form.statuses[v]}
+            </option>
+          ))}
         </select>
       </Field>
 
       <button type="button" onClick={() => setMore((m) => !m)} className="self-start text-sm font-medium text-ink underline decoration-2 underline-offset-4 hover:decoration-ink/30">
-        {more ? "Mniej opcji" : "Więcej opcji: koniec, okres próbny, link, notatki…"}
+        {more ? t.form.lessOptions : t.form.moreOptions}
       </button>
 
       <div className={more ? "flex flex-col gap-6" : "hidden"}>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Do kiedy" hint="Puste = odnawia się bez końca" error={e.endDate}>
+          <Field label={t.form.endDate} hint={t.form.endHint} error={e.endDate}>
             <input name="endDate" type="date" defaultValue={sub?.endDate ?? ""} className={inputCls} aria-invalid={!!e.endDate} />
           </Field>
-          <Field label="Koniec okresu próbnego" hint="Pierwsza płatność tego dnia" error={e.trialEndDate}>
+          <Field label={t.form.trialEnd} hint={t.form.trialHint} error={e.trialEndDate}>
             <input name="trialEndDate" type="date" defaultValue={sub?.trialEndDate ?? ""} className={inputCls} />
           </Field>
         </div>
-        <Field label="Link do zarządzania / anulowania" error={e.url}>
+        <Field label={t.form.url} error={e.url}>
           <input name="url" type="url" inputMode="url" placeholder="https://" defaultValue={sub?.url ?? ""} className={inputCls} aria-invalid={!!e.url} />
         </Field>
-        <Field label="Notatki">
+        <Field label={t.form.notes}>
           <textarea name="notes" rows={3} defaultValue={sub?.notes ?? ""} className={inputCls} />
         </Field>
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink">Kolor</span>
+          <span className="text-sm font-medium text-ink">{t.common.color}</span>
           <ColorPicker name="color" value={color} onChange={setColor} />
         </div>
       </div>
 
       {state?.error && <p className="rounded-card bg-ember/10 px-4 py-3 text-sm font-medium text-ember">{state.error}</p>}
       <div>
-        <Submit pending={pending}>{sub ? "Zapisz zmiany" : "Dodaj subskrypcję"}</Submit>
+        <Submit pending={pending}>{sub ? t.form.saveChanges : t.nav.addSubscription}</Submit>
       </div>
     </form>
   );

@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, ListChecks, Plus, Settings2, Wallet } from "lucide-react";
+import type { Dict } from "@/lib/i18n";
+import { useI18n } from "./i18n-provider";
 
 const items = [
-  { href: "/", label: "Pulpit", icon: LayoutGrid },
-  { href: "/subscriptions", label: "Subskrypcje", icon: ListChecks },
-  { href: "/cards", label: "Płatności", icon: Wallet },
-  { href: "/settings", label: "Więcej", icon: Settings2 },
-];
+  { href: "/", label: "dashboard", icon: LayoutGrid },
+  { href: "/subscriptions", label: "subscriptions", icon: ListChecks },
+  { href: "/cards", label: "payments", icon: Wallet },
+  { href: "/settings", label: "more", icon: Settings2 },
+] as const satisfies { href: string; label: keyof Dict["nav"]; icon: unknown }[];
 
 function isActive(path: string, href: string) {
   return href === "/" ? path === "/" : path.startsWith(href);
 }
 
 export function TopNav() {
+  const { t } = useI18n();
   const path = usePathname();
   return (
     <header className="sticky top-0 z-30 border-b border-hairline bg-surface-alt/85 backdrop-blur">
@@ -32,7 +35,7 @@ export function TopNav() {
                 isActive(path, i.href) ? "bg-paper text-ink shadow-card" : "text-muted hover:text-ink"
               }`}
             >
-              {i.label}
+              {t.nav[i.label]}
             </Link>
           ))}
         </nav>
@@ -40,7 +43,7 @@ export function TopNav() {
           href="/subscriptions/new"
           className="hidden h-9 items-center gap-1.5 rounded-full bg-ink px-4 text-sm font-medium text-paper transition hover:bg-ink-soft md:inline-flex"
         >
-          <Plus size={18} strokeWidth={2.5} /> Dodaj
+          <Plus size={18} strokeWidth={2.5} /> {t.common.add}
         </Link>
       </div>
     </header>
@@ -48,6 +51,7 @@ export function TopNav() {
 }
 
 export function BottomNav() {
+  const { t } = useI18n();
   const path = usePathname();
   const [a, b, c, d] = items;
   const tab = (i: (typeof items)[number]) => {
@@ -62,7 +66,7 @@ export function BottomNav() {
         <span className={`flex h-8 w-14 items-center justify-center rounded-full transition ${active ? "bg-hairline/70" : ""}`}>
           <Icon size={20} strokeWidth={active ? 2 : 1.75} />
         </span>
-        {i.label}
+        {t.nav[i.label]}
       </Link>
     );
   };
@@ -74,7 +78,7 @@ export function BottomNav() {
         <div className="flex flex-1 justify-center">
           <Link
             href="/subscriptions/new"
-            aria-label="Dodaj subskrypcję"
+            aria-label={t.nav.addSubscription}
             className="-mt-5 mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-ink text-paper shadow-panel ring-4 ring-surface-alt transition active:scale-95"
           >
             <Plus size={24} strokeWidth={2} />

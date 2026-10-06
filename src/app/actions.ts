@@ -2,6 +2,7 @@
 
 import { and, asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -14,6 +15,8 @@ import { amountOn } from "@/lib/price";
 import { normalizeDomain } from "@/lib/logo-domains";
 import { fetchLogo, refreshLogo, storeLogo } from "@/lib/logos";
 import { sendToAll } from "@/lib/push";
+import { isLocale, LOCALE_COOKIE, type Dict } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n/server";
 
 export type FormState = { ok?: boolean; error?: string; fieldErrors?: Record<string, string> } | undefined;
 
@@ -24,27 +27,30 @@ const optStr = z
   .nullable()
   .optional()
   .transform((v) => v ?? null);
-const optDate = optStr.refine((v) => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), "Niepoprawna data");
+const optDate = (t: Dict) => optStr.refine((v) => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), t.errors.invalidDate);
+const amountField = (t: Dict) =>
+  z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s/g, "").replace(",", "."))
+    .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), t.errors.amountInvalid);
 
-const subscriptionSchema = z
+const subscriptionSchema = (t: Dict) =>
+  z
   .object({
-    name: z.string().trim().min(1, "Podaj nazwę"),
-    amount: z
-      .string()
-      .trim()
-      .transform((v) => v.replace(/\s/g, "").replace(",", "."))
-      .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), "Podaj kwotę, np. 49,99"),
+    name: z.string().trim().min(1, t.errors.nameRequired),
+    amount: amountField(t),
     currency: z.enum(["PLN", "EUR", "USD", "GBP", "CHF"]),
-    intervalCount: z.coerce.number().int().min(1, "Min. 1").max(365),
+    intervalCount: z.coerce.number().int().min(1, t.errors.min1).max(365),
     intervalUnit: z.enum(["day", "week", "month", "year"]),
-    startDate: optDate,
-    firstBillingDate: optDate,
-    trialEndDate: optDate,
-    endDate: optDate,
+    startDate: optDate(t),
+    firstBillingDate: optDate(t),
+    trialEndDate: optDate(t),
+    endDate: optDate(t),
     status: z.enum(["active", "paused", "cancelled"]),
     scope: z.enum(["personal", "shared", "business"]).default("personal"),
     priceMode: z.enum(["change", "fix"]).default("change"),
-    priceFrom: optDate,
+    priceFrom: optDate(t),
     notify: z
       .string()
       .optional()
@@ -57,21 +63,21 @@ const subscriptionSchema = z
     category: optStr,
     splitWith: z.coerce.number().int().min(1).max(20),
     color: z.string().default("forest"),
-    url: optStr.refine((v) => v === null || /^https?:\/\//.test(v), "Adres musi zaczynać się od http(s)://"),
+    url: optStr.refine((v) => v === null || /^https?:\/\//.test(v), t.errors.urlInvalid),
     notes: optStr,
   })
   .refine((v) => v.startDate || v.firstBillingDate || v.trialEndDate, {
     path: ["firstBillingDate"],
-    message: "Podaj datę najbliższej płatności albo od kiedy masz subskrypcję",
+    message: t.errors.needDate,
   })
-  .refine((v) => !v.endDate || !v.startDate || v.endDate > v.startDate, { path: ["endDate"], message: "Koniec musi być po starcie" });
+  .refine((v) => !v.endDate || !v.startDate || v.endDate > v.startDate, { path: ["endDate"], message: t.errors.endAfterStart });
 
-function parseForm<T extends z.ZodTypeAny>(schema: T, formData: FormData) {
+function parseForm<T extends z.ZodTypeAny>(schema: T, formData: FormData, t: Dict) {
   const r = schema.safeParse(Object.fromEntries(formData));
   if (r.success) return { data: r.data as z.infer<T> };
   const fieldErrors: Record<string, string> = {};
   for (const issue of r.error.issues) fieldErrors[String(issue.path[0])] ??= issue.message;
-  return { state: { error: "Popraw zaznaczone pola", fieldErrors } satisfies FormState };
+  return { state: { error: t.errors.fixFields, fieldErrors } satisfies FormState };
 }
 
 function refreshAll() {
@@ -80,7 +86,8 @@ function refreshAll() {
 
 export async function saveSubscription(id: number | null, _prev: FormState, formData: FormData): Promise<FormState> {
   await requireAuth();
-  const parsed = parseForm(subscriptionSchema, formData);
+  const { t } = await getI18n();
+  const parsed = parseForm(subscriptionSchema(t), formData, t);
   if (!parsed.data) return parsed.state;
   const { priceMode, priceFrom, ...fields } = parsed.data;
   const values = { ...fields, splitWith: fields.scope === "shared" ? fields.splitWith : 1, updatedAt: new Date() };
@@ -129,10 +136,11 @@ async function lookUpLogo(id: number) {
 
 export async function setLogoDomain(id: number, raw: string): Promise<{ error?: string }> {
   await requireAuth();
+  const { t } = await getI18n();
   const domain = normalizeDomain(raw);
-  if (!domain) return { error: "Wpisz adres strony, np. skyshowtime.com" };
+  if (!domain) return { error: t.errors.logoDomain };
   const logo = await fetchLogo(domain);
-  if (!logo) return { error: `Nie znalazłem logo na ${domain}. Spróbuj innego adresu albo wgraj obrazek.` };
+  if (!logo) return { error: t.errors.logoNotFound(domain) };
   await storeLogo(id, logo, { domain });
   refreshAll();
   return {};
@@ -141,9 +149,10 @@ export async function setLogoDomain(id: number, raw: string): Promise<{ error?: 
 export async function uploadLogo(id: number, dataUrl: string): Promise<{ error?: string }> {
   await requireAuth();
   const m = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
-  if (!m) return { error: "Nieobsługiwany format obrazka" };
+  const { t } = await getI18n();
+  if (!m) return { error: t.errors.badImage };
   const data = Buffer.from(m[2], "base64");
-  if (data.length > 256 * 1024) return { error: "Obrazek jest za duży" };
+  if (data.length > 256 * 1024) return { error: t.errors.imageTooBig };
   await storeLogo(id, { data, contentType: m[1], fullBleed: true }, { custom: true });
   refreshAll();
   return {};
@@ -158,7 +167,7 @@ export async function resetLogo(id: number, mode: "monogram" | "auto"): Promise<
     await db.update(subscriptions).set({ logoCustom: false, logoDomain: null }).where(eq(subscriptions.id, id));
     const found = await refreshLogo(id);
     refreshAll();
-    if (!found) return { error: "Nie znalazłem logo automatycznie. Wpisz adres strony albo wgraj obrazek." };
+    if (!found) return { error: (await getI18n()).t.errors.logoAutoFailed };
   }
   refreshAll();
   return {};
@@ -204,18 +213,16 @@ async function applyPriceChange(tx: Tx, subId: number, date: string, newAmount: 
   await rechain(tx, subId, sub.amount);
 }
 
-const priceChangeSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Podaj datę"),
-  amount: z
-    .string()
-    .trim()
-    .transform((v) => v.replace(/\s/g, "").replace(",", "."))
-    .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), "Podaj kwotę, np. 49,99"),
-});
+const priceChangeSchema = (t: Dict) =>
+  z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, t.errors.dateRequired),
+    amount: amountField(t),
+  });
 
 export async function addPriceChange(subId: number, _prev: FormState, formData: FormData): Promise<FormState> {
   await requireAuth();
-  const parsed = parseForm(priceChangeSchema, formData);
+  const { t } = await getI18n();
+  const parsed = parseForm(priceChangeSchema(t), formData, t);
   if (!parsed.data) return parsed.state;
   await db.transaction((tx) => applyPriceChange(tx, subId, parsed.data.date, parsed.data.amount));
   refreshAll();
@@ -274,9 +281,10 @@ export async function setStatus(id: number, status: "active" | "paused") {
 
 export async function addCategory(raw: string): Promise<{ name?: string; error?: string }> {
   await requireAuth();
+  const { t } = await getI18n();
   const name = raw.trim().replace(/\s+/g, " ");
-  if (!name) return { error: "Wpisz nazwę" };
-  if (name.length > 40) return { error: "Max 40 znaków" };
+  if (!name) return { error: t.errors.categoryName };
+  if (name.length > 40) return { error: t.errors.max40 };
   await db.insert(categories).values({ name }).onConflictDoNothing();
   return { name };
 }
@@ -284,9 +292,10 @@ export async function addCategory(raw: string): Promise<{ name?: string; error?:
 /** Renames everywhere; renaming onto an existing category merges the two. */
 export async function renameCategory(from: string, raw: string): Promise<{ error?: string }> {
   await requireAuth();
+  const { t } = await getI18n();
   const to = raw.trim().replace(/\s+/g, " ");
-  if (!to) return { error: "Wpisz nazwę" };
-  if (to.length > 40) return { error: "Max 40 znaków" };
+  if (!to) return { error: t.errors.categoryName };
+  if (to.length > 40) return { error: t.errors.max40 };
   if (to === from) return {};
   await db.transaction(async (tx) => {
     await tx.insert(categories).values({ name: to }).onConflictDoNothing();
@@ -327,7 +336,7 @@ const pushSubSchema = z.object({
 export async function savePushSubscription(raw: unknown, label: string): Promise<{ error?: string }> {
   await requireAuth();
   const parsed = pushSubSchema.safeParse(raw);
-  if (!parsed.success) return { error: "Nieprawidłowa subskrypcja push" };
+  if (!parsed.success) return { error: (await getI18n()).t.push.invalidSubscription };
   const { endpoint, keys } = parsed.data;
   const row = { endpoint, p256dh: keys.p256dh, auth: keys.auth, label: label.slice(0, 80) || null };
   await db.insert(pushSubscriptions).values(row).onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: row });
@@ -345,22 +354,23 @@ export async function removePushDevice(endpointOrId: string | number) {
 
 export async function sendTestPush(): Promise<{ error?: string; sent?: number; total?: number; details?: string[] }> {
   await requireAuth();
+  const { t } = await getI18n();
   try {
     const res = await sendToAll({
-      title: "Powiadomienia działają",
-      body: "Tak będą wyglądać przypomnienia o płatnościach.",
+      title: t.push.testTitle,
+      body: t.push.testBody,
       url: "/settings/notifications",
       tag: "test",
     });
     revalidatePath("/settings/notifications");
     const details = res.results
       .filter((r) => !r.ok)
-      .map((r) => `${r.label ?? "Urządzenie"}: ${r.status ? `HTTP ${r.status}` : "błąd"}${r.detail ? ` — ${r.detail}` : ""}${r.status === 404 || r.status === 410 ? " (usunięte — włącz ponownie)" : ""}`);
-    if (!res.results.length) return { error: "Brak zarejestrowanych urządzeń. Włącz powiadomienia na tym urządzeniu." };
-    if (!res.sent) return { error: "Serwer push odrzucił wysyłkę.", details };
+      .map((r) => `${r.label ?? t.common.device}: ${r.status ? `HTTP ${r.status}` : t.push.error}${r.detail ? ` — ${r.detail}` : ""}${r.status === 404 || r.status === 410 ? t.push.removed : ""}`);
+    if (!res.results.length) return { error: t.push.noDevices };
+    if (!res.sent) return { error: t.push.rejected, details };
     return { sent: res.sent, total: res.results.length, details };
   } catch (e) {
-    return { error: `Błąd konfiguracji: ${(e as Error).message}` };
+    return { error: t.push.configError((e as Error).message) };
   }
 }
 
@@ -381,21 +391,23 @@ export async function setSubscriptionNotify(id: number, notify: boolean) {
   refreshAll();
 }
 
-const cardSchema = z.object({
-  kind: z.enum(["card", "account"]).default("card"),
-  name: z.string().trim().min(1, "Podaj nazwę"),
-  brand: optStr,
-  last4: optStr.refine((v) => v === null || /^\d{4}$/.test(v), "4 cyfry"),
-  expMonth: optStr.transform((v) => (v ? Number(v) : null)).refine((v) => v === null || (v >= 1 && v <= 12), "1–12"),
-  expYear: optStr
-    .transform((v) => (v ? (Number(v) < 100 ? 2000 + Number(v) : Number(v)) : null))
-    .refine((v) => v === null || (v >= 2000 && v <= 2100), "Np. 2028"),
-  color: z.string().default("forest"),
-});
+const cardSchema = (t: Dict) =>
+  z.object({
+    kind: z.enum(["card", "account"]).default("card"),
+    name: z.string().trim().min(1, t.errors.nameRequired),
+    brand: optStr,
+    last4: optStr.refine((v) => v === null || /^\d{4}$/.test(v), t.errors.last4),
+    expMonth: optStr.transform((v) => (v ? Number(v) : null)).refine((v) => v === null || (v >= 1 && v <= 12), t.errors.month),
+    expYear: optStr
+      .transform((v) => (v ? (Number(v) < 100 ? 2000 + Number(v) : Number(v)) : null))
+      .refine((v) => v === null || (v >= 2000 && v <= 2100), t.errors.year),
+    color: z.string().default("forest"),
+  });
 
 export async function saveCard(id: number | null, _prev: FormState, formData: FormData): Promise<FormState> {
   await requireAuth();
-  const parsed = parseForm(cardSchema, formData);
+  const { t } = await getI18n();
+  const parsed = parseForm(cardSchema(t), formData, t);
   if (!parsed.data) return parsed.state;
   if (id) await db.update(cards).set(parsed.data).where(eq(cards.id, id));
   else await db.insert(cards).values(parsed.data);
@@ -414,10 +426,19 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const password = String(formData.get("password") ?? "");
   if (!passwordMatches(password)) {
     await new Promise((r) => setTimeout(r, 800));
-    return { error: "Złe hasło" };
+    return { error: (await getI18n()).t.errors.wrongPassword };
   }
   await startSession();
   redirect("/");
+}
+
+/** Saves the UI language: cookie for this browser, settings row for push and the calendar feed. */
+export async function setLocale(locale: string) {
+  await requireAuth();
+  if (!isLocale(locale)) return;
+  (await cookies()).set(LOCALE_COOKIE, locale, { path: "/", sameSite: "lax", maxAge: 400 * 86400 });
+  await db.insert(settings).values({ id: 1, locale }).onConflictDoUpdate({ target: settings.id, set: { locale } });
+  refreshAll();
 }
 
 export async function logout() {

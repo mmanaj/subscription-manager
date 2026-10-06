@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chargesBetween, cycleLabel, monthlyFactor, nextCharge } from "./billing";
+import { chargesBetween, monthlyFactor, nextCharge } from "./billing";
+import { en } from "./i18n/en";
+import { pl } from "./i18n/pl";
 
 const base = {
   intervalCount: 1,
@@ -54,9 +56,12 @@ test("paused/cancelled produce no charges", () => {
 });
 
 test("labels and factors", () => {
-  assert.equal(cycleLabel("month", 3), "co kwartał");
-  assert.equal(cycleLabel("week", 2), "co 2 tygodnie");
-  assert.equal(cycleLabel("month", 5), "co 5 miesięcy");
+  assert.equal(pl.cycle("month", 3), "co kwartał");
+  assert.equal(pl.cycle("week", 2), "co 2 tygodnie");
+  assert.equal(pl.cycle("month", 5), "co 5 miesięcy");
+  assert.equal(en.cycle("month", 3), "quarterly");
+  assert.equal(en.cycle("week", 2), "every 2 weeks");
+  assert.equal(en.cycle("year", 1), "yearly");
   assert.equal(monthlyFactor("year", 1), 1 / 12);
 });
 

@@ -142,6 +142,8 @@ export const settings = pgTable("settings", {
   id: integer("id").primaryKey().default(1),
   remindDaysBefore: integer("remind_days_before").notNull().default(3),
   remindSameDay: boolean("remind_same_day").notNull().default(true),
+  /** UI + notification language */
+  locale: text("locale").notNull().default("pl"),
 });
 
 export type Card = typeof cards.$inferSelect;

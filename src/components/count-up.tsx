@@ -1,15 +1,16 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import { amountParts } from "@/lib/format";
+import { useI18n } from "./i18n-provider";
 
 const KEY = "subs:counted";
 
 /**
  * Big figure that counts up from zero on the first dashboard view of a session, and glides to the
- * new value when it changes (e.g. switching Prywatne / Wspólne / Firmowe). Reduced motion: no tween.
+ * new value when it changes (e.g. switching personal / shared / business). Reduced motion: no tween.
  */
-export function CountUpMoney({ value, className = "", currency = "zł" }: { value: number; className?: string; currency?: string }) {
+export function CountUpMoney({ value, className = "", currency }: { value: number; className?: string; currency: string }) {
+  const { f } = useI18n();
   const [shown, setShown] = useState(value);
   const current = useRef(value);
 
@@ -51,12 +52,13 @@ export function CountUpMoney({ value, className = "", currency = "zł" }: { valu
     };
   }, [value]);
 
-  const { int, dec } = amountParts(shown);
+  const { int, dec, sep } = f.amountParts(shown);
   return (
     <span className={`display tabular whitespace-nowrap ${className}`} aria-label={`${value.toFixed(2)} ${currency}`}>
       {int}
       <span className="text-[0.45em] tracking-normal">
-        ,{dec} {currency}
+        {sep}
+        {dec} {currency}
       </span>
     </span>
   );

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { Card, SubscriptionScope } from "@/db/schema";
 import type { EnrichedSub } from "@/lib/data";
-import { money } from "@/lib/format";
-import { plural } from "@/lib/billing";
+import { getI18n } from "@/lib/i18n/server";
 import { CardThumb } from "./card-visual";
 import { ScopeIcon } from "./scope";
 import { Avatar } from "./ui";
@@ -10,14 +9,15 @@ import { Avatar } from "./ui";
 type Slice<K> = { key: K; label: string; value: number; subs: EnrichedSub[] };
 
 const pct = (v: number, total: number) => (total ? Math.round((v / total) * 100) : 0);
-const pln = (v: number) => money(v, "PLN");
 
-/* ── Czyje: part-to-whole of 2–3 parts → one segmented bar + legend ───────────────────────── */
+/* ── Spending type: part-to-whole of 2–3 parts → one segmented bar + legend ───────────────────────── */
 
 // Fixed per type (not by rank), so a filter never repaints them. Achromatic steps, labels carry identity.
 const SCOPE_TONE: Record<SubscriptionScope, string> = { personal: "#0a0a0a", business: "#737373", shared: "#b5b5b5" };
 
-export function ScopeSplit({ data, total }: { data: Slice<SubscriptionScope>[]; total: number }) {
+export async function ScopeSplit({ data, total }: { data: Slice<SubscriptionScope>[]; total: number }) {
+  const { t, f } = await getI18n();
+  const pln = (v: number) => f.money(v);
   return (
     <div>
       <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={data.map((d) => `${d.label} ${pct(d.value, total)}%`).join(", ")}>
@@ -25,7 +25,7 @@ export function ScopeSplit({ data, total }: { data: Slice<SubscriptionScope>[]; 
           <div
             key={d.key}
             className="grow-x h-full first:rounded-l-full last:rounded-r-full"
-            title={`${d.label}: ${pln(d.value)} / mies.`}
+            title={`${d.label}: ${pln(d.value)} ${t.common.perMonth}`}
             style={{ flexGrow: d.value, flexBasis: 0, minWidth: 6, background: SCOPE_TONE[d.key], "--i": i } as React.CSSProperties}
           />
         ))}
@@ -40,7 +40,7 @@ export function ScopeSplit({ data, total }: { data: Slice<SubscriptionScope>[]; 
               <span className="min-w-0 flex-1">
                 <span className="block text-ink">{d.label}</span>
                 <span className="block text-xs text-muted">
-                  {d.subs.length} {plural(d.subs.length, ["subskrypcja", "subskrypcje", "subskrypcji"])}
+                  {t.subscriptionsCount(d.subs.length)}
                 </span>
               </span>
               <span className="shrink-0 whitespace-nowrap text-right">
@@ -55,9 +55,11 @@ export function ScopeSplit({ data, total }: { data: Slice<SubscriptionScope>[]; 
   );
 }
 
-/* ── Na co idzie: ranking of many → rows with the services inside each category ───────────── */
+/* ── Categories: ranking of many → rows with the services inside each category ───────────── */
 
-export function CategoryRanking({ data, total, href }: { data: Slice<string>[]; total: number; href: (c: string) => string }) {
+export async function CategoryRanking({ data, total, href }: { data: Slice<string>[]; total: number; href: (c: string) => string }) {
+  const { t, f } = await getI18n();
+  const pln = (v: number) => f.money(v);
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
     <ol className="flex flex-col">
@@ -76,7 +78,7 @@ export function CategoryRanking({ data, total, href }: { data: Slice<string>[]; 
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-ink">{d.label}</span>
                 <span className="block truncate text-xs text-muted">
-                  {d.subs.length > 3 ? `${d.subs.slice(0, 2).map((s) => s.name).join(", ")} i ${d.subs.length - 2} więcej` : d.subs.map((s) => s.name).join(", ")}
+                  {d.subs.length > 3 ? t.dashboard.andMore(d.subs.slice(0, 2).map((s) => s.name).join(", "), d.subs.length - 2) : d.subs.map((s) => s.name).join(", ")}
                 </span>
               </span>
               <span className="shrink-0 whitespace-nowrap text-right">
@@ -97,9 +99,11 @@ export function CategoryRanking({ data, total, href }: { data: Slice<string>[]; 
   );
 }
 
-/* ── Z jakiej karty: few, physical things → tiles with the card itself ─────────────────────── */
+/* ── Payment sources: few, physical things → tiles with the card itself ─────────────────────── */
 
-export function CardTiles({ data, total }: { data: Slice<Card | null>[]; total: number }) {
+export async function CardTiles({ data, total }: { data: Slice<Card | null>[]; total: number }) {
+  const { f } = await getI18n();
+  const pln = (v: number) => f.money(v);
   return (
     <ul className="grid grid-cols-2 gap-3">
       {data.map((d) => {

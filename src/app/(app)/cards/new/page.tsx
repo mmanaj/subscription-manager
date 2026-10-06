@@ -1,13 +1,18 @@
 import { saveCard } from "@/app/actions";
 import { CardForm } from "@/components/card-form";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/page-header";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Nowa metoda płatności" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.cards.newMeta };
+}
 
-export default function NewCard() {
+export default async function NewCard() {
+  const { t } = await getI18n();
   return (
     <div>
-      <PageHeader title="Nowa płatność" back="/cards" />
+      <PageHeader title={t.cards.newTitle} back="/cards" />
       <CardForm action={saveCard.bind(null, null)} />
     </div>
   );

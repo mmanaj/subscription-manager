@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Briefcase, User, Users } from "lucide-react";
 import type { SubscriptionScope } from "@/db/schema";
+import { getI18n } from "@/lib/i18n/server";
 
 const ICON = { personal: User, shared: Users, business: Briefcase } as const;
-const LABEL = { personal: "Prywatne", shared: "Wspólne", business: "Firmowe" } as const;
 
 export function ScopeIcon({ scope, size = 16 }: { scope: SubscriptionScope; size?: number }) {
   const Icon = ICON[scope];
@@ -11,12 +11,13 @@ export function ScopeIcon({ scope, size = 16 }: { scope: SubscriptionScope; size
 }
 
 /** Small corner badge on a logo: shared = navy people, business = black briefcase, personal = none. */
-export function ScopeBadge({ scope, size = 18 }: { scope: SubscriptionScope; size?: number }) {
+export async function ScopeBadge({ scope, size = 18 }: { scope: SubscriptionScope; size?: number }) {
   if (scope === "personal") return null;
+  const { t } = await getI18n();
   const Icon = ICON[scope];
   return (
     <span
-      title={scope === "shared" ? "Wspólna" : "Firmowa"}
+      title={t.scope[scope].one}
       className={`absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full ring-2 ring-paper ${
         scope === "shared" ? "bg-paper text-ink shadow-hairline" : "bg-ink text-paper"
       }`}
@@ -28,7 +29,7 @@ export function ScopeBadge({ scope, size = 18 }: { scope: SubscriptionScope; siz
 }
 
 /** Full-width type switcher with icons; one look on the dashboard and the list. */
-export function ScopeTabs({
+export async function ScopeTabs({
   active,
   href,
   available,
@@ -38,13 +39,14 @@ export function ScopeTabs({
   /** Hide types you don't use */
   available?: Set<SubscriptionScope>;
 }) {
+  const { t } = await getI18n();
   const scopes = (["personal", "shared", "business"] as const).filter((s) => !available || available.has(s));
   const items: { key: SubscriptionScope | undefined; label: string }[] = [
-    { key: undefined, label: "Wszystkie" },
-    ...scopes.map((s) => ({ key: s, label: LABEL[s] })),
+    { key: undefined, label: t.scope.all },
+    ...scopes.map((s) => ({ key: s, label: t.scope[s].many })),
   ];
   return (
-    <nav aria-label="Typ" className="grid w-full rounded-full bg-hairline/60 p-1 sm:max-w-md" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+    <nav aria-label={t.scope.navLabel} className="grid w-full rounded-full bg-hairline/60 p-1 sm:max-w-md" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((i) => {
         const on = i.key === active;
         const Icon = i.key ? ICON[i.key] : null;

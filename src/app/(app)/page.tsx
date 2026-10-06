@@ -10,8 +10,8 @@ import { CountUpMoney } from "@/components/count-up";
 import { ScopeTabs } from "@/components/scope";
 import { btn, Empty, SectionTitle } from "@/components/ui";
 import { dashboardStats, isScope, loadAll, sum } from "@/lib/data";
-import { money } from "@/lib/format";
-import { plural } from "@/lib/billing";
+import type { I18n } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,21 +20,23 @@ const alertIcon = { trial: Hourglass, card: CreditCard, ending: CalendarClock, f
 export default async function Dashboard(props: PageProps<"/">) {
   const { typ } = await props.searchParams;
   const scope = isScope(typ) ? typ : undefined;
-  const data = await loadAll();
+  const [data, i18n] = await Promise.all([loadAll(), getI18n()]);
+  const { t, f } = i18n;
+  const { money } = f;
   after(() => backfillLogos());
-  const st = dashboardStats(data, scope);
+  const st = dashboardStats(data, scope, i18n);
   const scopesInUse = new Set(data.subs.map((s) => s.scope));
 
   if (data.subs.length === 0) {
     return (
       <div className="flex flex-col gap-8">
-        <h1 className="display text-4xl sm:text-5xl">Zero subskrypcji</h1>
-        <Empty title="Dodaj pierwszą, żeby zobaczyć ile naprawdę płacisz.">
+        <h1 className="display text-4xl sm:text-5xl">{t.dashboard.emptyTitle}</h1>
+        <Empty title={t.dashboard.emptyBody}>
           <Link href="/subscriptions/new" className={btn.primary}>
-            Dodaj subskrypcję
+            {t.nav.addSubscription}
           </Link>
           <Link href="/cards/new" className={btn.link}>
-            albo najpierw kartę lub konto
+            {t.dashboard.orCardFirst}
           </Link>
         </Empty>
       </div>
@@ -51,25 +53,26 @@ export default async function Dashboard(props: PageProps<"/">) {
         <section className="rise grid gap-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-end sm:gap-12">
           <div>
             <p className="caption">
-              Płacisz średnio miesięcznie
-              {scope && <> · {{ personal: "prywatne", shared: "wspólne", business: "firmowe" }[scope]}</>}
+              {t.dashboard.avgMonthly}
+              {scope && <> · {t.dashboard.scopeSuffix[scope]}</>}
             </p>
-            <CountUpMoney value={st.monthly} className="mt-2 block text-5xl sm:text-6xl" />
+            <CountUpMoney value={st.monthly} currency={f.currencyLabel("PLN")} className="mt-2 block text-5xl sm:text-6xl" />
             <p className="mt-3 text-muted">
-              <span className="tabular font-medium text-ink">{money(st.yearly, "PLN", { compact: true })}</span> rocznie
+              <span className="tabular font-medium text-ink">{money(st.yearly, "PLN", { compact: true })}</span> {t.dashboard.perYear}
               <span className="px-1.5 text-hairline">·</span>
               <span className="tabular font-medium text-ink">{st.liveCount}</span>{" "}
-              {plural(st.liveCount, ["aktywna", "aktywne", "aktywnych"])}
+              {t.dashboard.activeWord(st.liveCount)}
               {st.trialCount > 0 && (
                 <>
                   <span className="px-1.5 text-hairline">·</span>
-                  {st.trialCount} w okresie próbnym
+                  {t.dashboard.inTrial(st.trialCount)}
                 </>
               )}
             </p>
           </div>
           <MonthProgress
-            month={new Intl.DateTimeFormat("pl-PL", { month: "long", timeZone: "UTC" }).format(new Date(`${data.today}T00:00:00Z`))}
+            month={f.monthName(data.today)}
+            i18n={i18n}
             total={st.thisMonthTotal}
             paid={st.thisMonthPaid}
             left={st.thisMonthLeft}
@@ -123,7 +126,7 @@ export default async function Dashboard(props: PageProps<"/">) {
               <span className="tabular text-sm text-muted">{money(sum(st.next30.map((p) => p.pln)))}</span>
             }
           >
-            Najbliższe 30 dni
+            {t.dashboard.next30}
           </SectionTitle>
           {st.next30.length ? (
             <ul className="divide-y divide-hairline border-y border-hairline">
@@ -134,19 +137,19 @@ export default async function Dashboard(props: PageProps<"/">) {
               ))}
             </ul>
           ) : (
-            <p className="py-6 text-center text-muted">Spokój. Nic nie schodzi w ciągu 30 dni.</p>
+            <p className="py-6 text-center text-muted">{t.dashboard.next30Empty}</p>
           )}
         </section>
 
         <section className="flex min-w-0 flex-col gap-14 lg:col-start-2 lg:row-start-2">
           {!scope && st.byScope.length > 1 && (
             <div>
-              <SectionTitle>Typ wydatków</SectionTitle>
+              <SectionTitle>{t.dashboard.byScope}</SectionTitle>
               <ScopeSplit data={st.byScope} total={st.monthly} />
             </div>
           )}
           <div>
-            <SectionTitle>Kategorie</SectionTitle>
+            <SectionTitle>{t.dashboard.byCategory}</SectionTitle>
             <CategoryRanking
               data={st.byCategory}
               total={st.monthly}
@@ -154,12 +157,11 @@ export default async function Dashboard(props: PageProps<"/">) {
             />
           </div>
           <div>
-            <SectionTitle>Źródła płatności</SectionTitle>
+            <SectionTitle>{t.dashboard.byCard}</SectionTitle>
             <CardTiles data={st.byCard} total={st.monthly} />
           </div>
           <p className="text-[13px] text-muted">
-            Kwoty miesięczne to średnia: płatności roczne dzielone na 12, kwartalne na 3. W walutach obcych przeliczone po
-            kursie średnim NBP{data.rates.date ? ` z ${data.rates.date}` : ""}. Następne 12 mies.:{" "}
+            {t.dashboard.footnote(data.rates.date ? f.dateLong(data.rates.date) : null)}{" "}
             <span className="tabular font-medium text-ink">{money(st.next12m)}</span>.
           </p>
         </section>
@@ -169,7 +171,9 @@ export default async function Dashboard(props: PageProps<"/">) {
 }
 
 /** This month at a glance: what's already gone vs. still to come, as one split bar. */
-function MonthProgress({ month, total, paid, left }: { month: string; total: number; paid: number; left: number }) {
+function MonthProgress({ month, total, paid, left, i18n }: { month: string; total: number; paid: number; left: number; i18n: I18n }) {
+  const { t, f } = i18n;
+  const { money } = f;
   const pct = total ? Math.round((paid / total) * 100) : 0;
   return (
     <div>
@@ -180,16 +184,16 @@ function MonthProgress({ month, total, paid, left }: { month: string; total: num
       <div
         className="mt-3 h-2 overflow-hidden rounded-full bg-canvas"
         role="img"
-        aria-label={`Zapłacono ${pct}% z ${money(total)} w tym miesiącu`}
+        aria-label={t.dashboard.paidAria(pct, money(total))}
       >
         <div className="grow-x h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
       </div>
       <div className="mt-2 flex justify-between gap-3 text-sm">
         <span className="text-muted">
-          Zapłacone <span className="tabular font-medium text-ink">{money(paid, "PLN", { compact: true })}</span>
+          {t.dashboard.paid} <span className="tabular font-medium text-ink">{money(paid, "PLN", { compact: true })}</span>
         </span>
         <span className="text-muted">
-          Zostało <span className="tabular font-medium text-ink">{money(left, "PLN", { compact: true })}</span>
+          {t.dashboard.left} <span className="tabular font-medium text-ink">{money(left, "PLN", { compact: true })}</span>
         </span>
       </div>
     </div>

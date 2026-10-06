@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { swatch } from "@/lib/colors";
-import { amountParts } from "@/lib/format";
 
 export const btn = {
   primary:
@@ -65,13 +64,21 @@ export function Avatar({
 }
 
 /** Big Wise-style figure: heavy integer part, lighter decimals + currency. */
-export function BigMoney({ value, className = "", currency = "zł" }: { value: number; className?: string; currency?: string }) {
-  const { int, dec } = amountParts(value);
+export function BigMoney({
+  parts: { int, dec, sep },
+  currency,
+  className = "",
+}: {
+  parts: { int: string; dec: string; sep: string };
+  currency: string;
+  className?: string;
+}) {
   return (
     <span className={`display tabular whitespace-nowrap ${className}`}>
       {int}
       <span className="text-[0.45em] tracking-normal">
-        ,{dec} {currency}
+        {sep}
+        {dec} {currency}
       </span>
     </span>
   );
@@ -95,22 +102,6 @@ export function SectionTitle({ children, action }: { children: React.ReactNode; 
       <h2 className="heading text-lg">{children}</h2>
       {action}
     </div>
-  );
-}
-
-export function PageHeader({ title, back, action }: { title: React.ReactNode; back?: string; action?: React.ReactNode }) {
-  return (
-    <header className="mb-8 flex flex-col gap-2 sm:mb-10">
-      {back && (
-        <Link href={back} className="text-sm text-muted hover:text-ink">
-          ← Wróć
-        </Link>
-      )}
-      <div className="flex items-end justify-between gap-4">
-        <h1 className="heading text-3xl sm:text-4xl">{title}</h1>
-        {action}
-      </div>
-    </header>
   );
 }
 

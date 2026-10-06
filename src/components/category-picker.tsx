@@ -3,9 +3,12 @@
 import { useRef, useState, useTransition } from "react";
 import { Plus, X } from "lucide-react";
 import { addCategory } from "@/app/actions";
+import { isOtherCategory } from "@/lib/i18n";
 import { inputCls } from "./form-bits";
+import { useI18n } from "./i18n-provider";
 
 export function CategoryPicker({ name, initial, options }: { name: string; initial: string | null; options: string[] }) {
+  const { t } = useI18n();
   const [list, setList] = useState(() => (initial && !options.includes(initial) ? [...options, initial] : options));
   const [value, setValue] = useState(initial ?? "");
   const [draft, setDraft] = useState("");
@@ -28,8 +31,8 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
     }
     start(async () => {
       const res = await addCategory(draft);
-      if (res.error || !res.name) return setError(res.error ?? "Nie udało się zapisać");
-      setList((l) => [...l.filter((c) => c !== "Inne"), res.name!, ...(l.includes("Inne") ? ["Inne"] : [])]);
+      if (res.error || !res.name) return setError(res.error ?? t.common.saveFailed);
+      setList((l) => [...l.filter((c) => !isOtherCategory(c)), res.name!, ...l.filter(isOtherCategory)]);
       setValue(res.name);
       dialog.current?.close();
     });
@@ -37,7 +40,7 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
 
   return (
     <fieldset className="flex flex-col gap-1.5">
-      <legend className="mb-1.5 text-sm font-medium text-ink">Kategoria</legend>
+      <legend className="mb-1.5 text-sm font-medium text-ink">{t.category.label}</legend>
       <input type="hidden" name={name} value={value} />
       <div className="flex flex-wrap gap-2">
         {list.map((c) => (
@@ -58,7 +61,7 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
           onClick={open}
           className="inline-flex items-center gap-1 rounded-full border border-ink px-4 py-2 text-sm font-medium text-ink transition hover:bg-canvas"
         >
-          <Plus size={16} strokeWidth={2.5} /> Nowa
+          <Plus size={16} strokeWidth={2.5} /> {t.category.new}
         </button>
       </div>
 
@@ -69,8 +72,8 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-xl">Nowa kategoria</h2>
-          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
+          <h2 className="heading text-xl">{t.category.newTitle}</h2>
+          <button type="button" aria-label={t.common.close} onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
             <X size={22} />
           </button>
         </div>
@@ -78,7 +81,7 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
           autoFocus
           value={draft}
           maxLength={40}
-          placeholder="np. Zdrowie"
+          placeholder={t.category.placeholder}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -96,7 +99,7 @@ export function CategoryPicker({ name, initial, options }: { name: string; initi
           onClick={save}
           className="mt-5 w-full rounded-full bg-ink px-6 py-3.5 font-medium text-paper transition hover:bg-ink-soft disabled:opacity-50"
         >
-          {pending ? "Dodaję…" : "Dodaj i wybierz"}
+          {pending ? t.category.adding : t.category.addAndPick}
         </button>
       </dialog>
     </fieldset>

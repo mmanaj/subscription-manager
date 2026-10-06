@@ -2,6 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 import { SWATCHES } from "@/lib/colors";
+import { useI18n } from "./i18n-provider";
 
 export const inputCls =
   "w-full rounded-[var(--radius-field)] border border-transparent bg-canvas px-3.5 py-2.5 text-ink outline-none transition placeholder:text-muted focus:border-hairline focus:bg-paper focus:ring-2 focus:ring-ink/10 aria-[invalid=true]:border-ember/60";
@@ -29,6 +30,7 @@ export function Field({
 }
 
 export function Submit({ children, pending: pendingProp }: { children: React.ReactNode; pending?: boolean }) {
+  const { t } = useI18n();
   const status = useFormStatus();
   const pending = pendingProp ?? status.pending;
   return (
@@ -37,16 +39,17 @@ export function Submit({ children, pending: pendingProp }: { children: React.Rea
       disabled={pending}
       className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-6 text-sm font-medium text-paper transition hover:bg-ink-soft disabled:opacity-60 sm:w-auto"
     >
-      {pending ? "Zapisuję…" : children}
+      {pending ? t.common.saving : children}
     </button>
   );
 }
 
 export function ColorPicker({ name, value, onChange }: { name: string; value: string; onChange?: (v: string) => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap gap-2">
       {Object.entries(SWATCHES).map(([key, s]) => (
-        <label key={key} className="cursor-pointer" title={s.label}>
+        <label key={key} className="cursor-pointer" title={t.colors[key as keyof typeof SWATCHES]}>
           <input
             type="radio"
             name={name}

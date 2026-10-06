@@ -2,16 +2,21 @@ import Link from "next/link";
 import { ChevronRight, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-visual";
 import { ScopeBadge } from "@/components/scope";
-import { Avatar, btn, Empty, PageHeader, Tag } from "@/components/ui";
-import { plural } from "@/lib/billing";
+import { Avatar, btn, Empty, Tag } from "@/components/ui";
+import { PageHeader } from "@/components/page-header";
 import { cardExpiry, loadAll, sum, type EnrichedSub } from "@/lib/data";
-import { money, relative } from "@/lib/format";
+import type { I18n } from "@/lib/i18n";
+import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Płatności" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.cards.title };
+}
 
 export default async function CardsPage() {
-  const { cards, subs, today } = await loadAll();
+  const [{ cards, subs, today }, i18n] = await Promise.all([loadAll(), getI18n()]);
+  const { t, f } = i18n;
   const live = subs.filter((s) => s.live);
   const unassigned = live.filter((s) => !s.cardId);
   // Busiest card first: that's the one you'd look for.
@@ -24,18 +29,18 @@ export default async function CardsPage() {
   return (
     <div>
       <PageHeader
-        title="Płatności"
+        title={t.cards.title}
         action={
           <Link href="/cards/new" className={btn.primary}>
-            Dodaj
+            {t.common.add}
           </Link>
         }
       />
 
       {cards.length === 0 ? (
-        <Empty title="Brak kart i kont. Dodaj, żeby wiedzieć, co z czego schodzi.">
+        <Empty title={t.cards.empty}>
           <Link href="/cards/new" className={btn.primary}>
-            Dodaj kartę lub konto
+            {t.cards.addCardOrAccount}
           </Link>
         </Empty>
       ) : (
@@ -53,32 +58,32 @@ export default async function CardsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate font-medium text-ink">{c.name}</h2>
-                      {expired ? <Tag tone="danger">wygasła</Tag> : beforeNext ? <Tag tone="danger">wygasa</Tag> : null}
+                      {expired ? <Tag tone="danger">{t.cards.expired}</Tag> : beforeNext ? <Tag tone="danger">{t.cards.expiring}</Tag> : null}
                     </div>
                     <p className="truncate text-sm text-muted">
-                      {[[c.kind === "account" ? "Konto bankowe" : c.brand, c.last4 && `••${c.last4}`].filter(Boolean).join(" "), expiry].filter(Boolean).join(" · ") || "—"}
+                      {[[c.kind === "account" ? t.cards.bankAccount : c.brand === "Inne" ? t.cards.brandOther : c.brand, c.last4 && `••${c.last4}`].filter(Boolean).join(" "), expiry].filter(Boolean).join(" · ") || "—"}
                     </p>
                   </div>
                   <Link
                     href={`/cards/${c.id}/edit`}
-                    aria-label={`Edytuj: ${c.name}`}
+                    aria-label={t.cards.editAria(c.name)}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-canvas hover:text-ink"
                   >
                     <Pencil size={16} />
                   </Link>
                 </header>
 
-                {on.length ? <SubList subs={on} today={today} /> : (
-                  <p className="border-t border-hairline py-4 text-sm text-muted">Nic stąd nie schodzi.</p>
+                {on.length ? <SubList subs={on} today={today} i18n={i18n} /> : (
+                  <p className="border-t border-hairline py-4 text-sm text-muted">{t.cards.nothingHere}</p>
                 )}
 
                 <footer className="flex items-center justify-between border-t border-hairline py-3 text-sm">
                   <span className="text-muted">
-                    {on.length} {plural(on.length, ["subskrypcja", "subskrypcje", "subskrypcji"])}
+                    {t.subscriptionsCount(on.length)}
                   </span>
                   <span>
-                    <span className="tabular font-medium text-ink">{money(sum(on.map((s) => s.monthlyPLN)))}</span>
-                    <span className="text-muted"> / mies.</span>
+                    <span className="tabular font-medium text-ink">{f.money(sum(on.map((s) => s.monthlyPLN)))}</span>
+                    <span className="text-muted"> {t.common.perMonth}</span>
                   </span>
                 </footer>
               </section>
@@ -88,10 +93,10 @@ export default async function CardsPage() {
           {unassigned.length > 0 && (
             <section className="rise" style={{ "--i": sorted.length } as React.CSSProperties}>
               <header className="pb-3">
-                <h2 className="font-medium text-ink">Bez przypisanej płatności</h2>
-                <p className="text-sm text-muted">Przypisz kartę lub konto, żeby wiedzieć, co z czego schodzi.</p>
+                <h2 className="font-medium text-ink">{t.cards.unassignedTitle}</h2>
+                <p className="text-sm text-muted">{t.cards.unassignedHint}</p>
               </header>
-              <SubList subs={unassigned} today={today} />
+              <SubList subs={unassigned} today={today} i18n={i18n} />
             </section>
           )}
         </div>
@@ -100,7 +105,7 @@ export default async function CardsPage() {
   );
 }
 
-function SubList({ subs, today }: { subs: EnrichedSub[]; today: string }) {
+function SubList({ subs, today, i18n: { f } }: { subs: EnrichedSub[]; today: string; i18n: I18n }) {
   return (
     <ul className="divide-y divide-hairline border-t border-hairline">
       {subs.map((s) => (
@@ -112,9 +117,9 @@ function SubList({ subs, today }: { subs: EnrichedSub[]; today: string }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-ink">{s.name}</span>
-              <span className="block truncate text-xs text-muted">{s.next ? relative(s.next, today) : "—"}</span>
+              <span className="block truncate text-xs text-muted">{s.next ? f.relative(s.next, today) : "—"}</span>
             </span>
-            <span className="tabular shrink-0 text-ink">{money(s.myAmount, s.currency)}</span>
+            <span className="tabular shrink-0 text-ink">{f.money(s.myAmount, s.currency)}</span>
             <ChevronRight size={16} className="shrink-0 text-muted" />
           </Link>
         </li>

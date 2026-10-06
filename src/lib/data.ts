@@ -2,10 +2,10 @@ import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { cards, logos, payments, priceChanges, subscriptions, type Card, type SubscriptionScope, type Subscription } from "@/db/schema";
-import { chargesBetween, cycleLabel, inTrial, isLive, monthlyFactor, nextCharge } from "./billing";
+import { chargesBetween, inTrial, isLive, monthlyFactor, nextCharge } from "./billing";
 import { addDays, addMonths, endOfMonth, startOfMonth, today as todayFn, type ISODate } from "./dates";
 import { getRates, toPLN, type Rates } from "./fx";
-import { dateShort, money } from "./format";
+import type { I18n } from "./i18n";
 import { amountOn, type PriceEvent } from "./price";
 
 export type Logo = { src: string; fullBleed: boolean };
@@ -160,18 +160,18 @@ export type Alert = {
   pay?: { subId: number; date: ISODate };
 };
 
-export const SCOPES: Record<SubscriptionScope, { label: string; plural: string }> = {
-  personal: { label: "Prywatna", plural: "Prywatne" },
-  shared: { label: "Wspólna", plural: "Wspólne" },
-  business: { label: "Firmowa", plural: "Firmowe" },
-};
+export const SCOPES: readonly SubscriptionScope[] = ["personal", "shared", "business"];
 
 export function isScope(v: unknown): v is SubscriptionScope {
-  return typeof v === "string" && v in SCOPES;
+  return typeof v === "string" && (SCOPES as readonly string[]).includes(v);
 }
 
-export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?: SubscriptionScope) {
+/** Category key for subscriptions without one (kept out of the way of real names). */
+export const NO_CATEGORY = "-";
+
+export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope: SubscriptionScope | undefined, { t, f }: I18n) {
   const { today, rates } = data;
+  const { money, dateShort } = f;
   const subs = scope ? data.subs.filter((s) => s.scope === scope) : data.subs;
   const cardList = scope ? data.cards.filter((c) => subs.some((s) => s.cardId === c.id)) : data.cards;
   const live = subs.filter((s) => s.live);
@@ -207,22 +207,22 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
       .sort((a, b) => b.value - a.value);
   };
   const byCategory = group(
-    (s) => s.category?.trim() || "Bez kategorii",
-    (k) => k,
+    (s) => s.category?.trim() || NO_CATEGORY,
+    (k) => (k === NO_CATEGORY ? t.noCategory : k),
   );
   const byCard = group(
     (s) => s.card,
-    (c) => (c ? c.name : "Nieprzypisane"),
+    (c) => (c ? c.name : t.unassigned),
   );
   const byScope = group(
     (s) => s.scope,
-    (k) => SCOPES[k].plural,
+    (k) => t.scope[k].many,
   );
 
   const alerts: Alert[] = overdue.map((p) => ({
     kind: "unpaid",
-    title: `Nieopłacone: ${p.sub.name}`,
-    detail: `${money(p.amount, p.sub.currency)} · termin ${dateShort(p.date)}`,
+    title: t.alerts.unpaid(p.sub.name),
+    detail: t.alerts.unpaidDetail(money(p.amount, p.sub.currency), dateShort(p.date)),
     href: `/subscriptions/${p.sub.id}`,
     pay: { subId: p.sub.id, date: p.date },
   }));
@@ -230,8 +230,8 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
     if (s.trial && s.trialEndDate && s.trialEndDate <= addDays(today, 7)) {
       alerts.push({
         kind: "trial",
-        title: `Koniec okresu próbnego: ${s.name}`,
-        detail: `${dateShort(s.trialEndDate)} — potem ${money(s.myAmount, s.currency)} ${cycleLabel(s.intervalUnit, s.intervalCount)}`,
+        title: t.alerts.trial(s.name),
+        detail: t.alerts.trialDetail(dateShort(s.trialEndDate), money(s.myAmount, s.currency), f.cycle(s.intervalUnit, s.intervalCount)),
         href: `/subscriptions/${s.id}`,
       });
     }
@@ -240,14 +240,14 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
         const split = Math.max(1, s.splitWith);
         alerts.push({
           kind: "price",
-          title: `${e.newAmount > e.oldAmount ? "Podwyżka" : "Zmiana ceny"}: ${s.name}`,
-          detail: `Od ${dateShort(e.effectiveDate)}: ${money(e.oldAmount / split, s.currency)} → ${money(e.newAmount / split, s.currency)}`,
+          title: (e.newAmount > e.oldAmount ? t.alerts.priceUp : t.alerts.priceChange)(s.name),
+          detail: t.alerts.priceDetail(dateShort(e.effectiveDate), money(e.oldAmount / split, s.currency), money(e.newAmount / split, s.currency)),
           href: `/subscriptions/${s.id}`,
         });
       }
     }
     if (s.endDate && s.endDate <= addDays(today, 30)) {
-      alerts.push({ kind: "ending", title: `Kończy się: ${s.name}`, detail: `Koniec: ${dateShort(s.endDate)}`, href: `/subscriptions/${s.id}` });
+      alerts.push({ kind: "ending", title: t.alerts.ending(s.name), detail: t.alerts.endingDetail(dateShort(s.endDate)), href: `/subscriptions/${s.id}` });
     }
   }
   for (const c of cardList) {
@@ -257,16 +257,16 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
     if (exp <= addDays(today, 45) || affected.length) {
       alerts.push({
         kind: "card",
-        title: `${exp < today ? "Karta wygasła" : "Karta wygasa"}: ${c.name}${c.last4 ? ` ••${c.last4}` : ""}`,
+        title: (exp < today ? t.alerts.cardExpired : t.alerts.cardExpiring)(`${c.name}${c.last4 ? ` ••${c.last4}` : ""}`),
         detail: affected.length
-          ? `Do aktualizacji w: ${affected.map((s) => s.name).join(", ")}`
-          : `Ważna do ${String(c.expMonth).padStart(2, "0")}/${c.expYear}`,
+          ? t.alerts.cardUpdateIn(affected.map((s) => s.name).join(", "))
+          : t.alerts.cardValidUntil(`${String(c.expMonth).padStart(2, "0")}/${c.expYear}`),
         href: `/cards/${c.id}/edit`,
       });
     }
   }
   if (rates.fallback && live.some((s) => s.currency !== "PLN")) {
-    alerts.push({ kind: "fx", title: "Kursy walut przybliżone", detail: "Nie udało się pobrać tabeli NBP." });
+    alerts.push({ kind: "fx", title: t.alerts.fx, detail: t.alerts.fxDetail });
   }
 
   return {

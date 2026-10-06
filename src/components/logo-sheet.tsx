@@ -5,6 +5,7 @@ import { ImageUp, RefreshCw, X } from "lucide-react";
 import { resetLogo, setLogoDomain, uploadLogo } from "@/app/actions";
 import type { Logo } from "@/lib/data";
 import { inputCls } from "./form-bits";
+import { useI18n } from "./i18n-provider";
 import { Avatar } from "./ui";
 
 /** Downscales any picked image to a 160×160 PNG in the browser before upload. */
@@ -37,6 +38,7 @@ export function LogoSheet({
   /** Logo was set by hand (own upload, chosen site or monogram) */
   overridden: boolean;
 }) {
+  const { t } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(domain ?? "");
@@ -55,7 +57,7 @@ export function LogoSheet({
     <>
       <button
         type="button"
-        aria-label="Zmień logo"
+        aria-label={t.logo.change}
         onClick={() => {
           setDraft(domain ?? "");
           setError(undefined);
@@ -72,8 +74,8 @@ export function LogoSheet({
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-xl">Logo</h2>
-          <button type="button" aria-label="Zamknij" onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
+          <h2 className="heading text-xl">{t.logo.title}</h2>
+          <button type="button" aria-label={t.common.close} onClick={() => dialog.current?.close()} className="rounded-full p-2 hover:bg-canvas">
             <X size={22} />
           </button>
         </div>
@@ -86,14 +88,14 @@ export function LogoSheet({
           className="flex flex-col gap-2"
         >
           <label className="text-sm font-medium text-ink" htmlFor={`logo-domain-${id}`}>
-            Strona serwisu
+            {t.logo.site}
           </label>
           <div className="flex gap-2">
             <input
               id={`logo-domain-${id}`}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="np. skyshowtime.com"
+              placeholder={t.logo.sitePh}
               inputMode="url"
               autoCapitalize="off"
               autoCorrect="off"
@@ -104,10 +106,10 @@ export function LogoSheet({
               disabled={pending || !draft.trim()}
               className="shrink-0 rounded-full bg-ink px-5 font-medium text-paper transition hover:bg-ink-soft disabled:opacity-50"
             >
-              {pending ? "…" : "Pobierz"}
+              {pending ? "…" : t.logo.fetch}
             </button>
           </div>
-          <p className="text-xs text-muted">Pobiorę ikonę z tej strony i zapiszę ją u Ciebie.</p>
+          <p className="text-xs text-muted">{t.logo.siteHint}</p>
         </form>
 
         {error && <p className="mt-3 text-sm font-medium text-ember">{error}</p>}
@@ -126,7 +128,7 @@ export function LogoSheet({
                 const png = await toSquarePng(f);
                 run(() => uploadLogo(id, png));
               } catch {
-                setError("Nie udało się wczytać obrazka");
+                setError(t.logo.loadFailed);
               }
             }}
           />
@@ -136,7 +138,7 @@ export function LogoSheet({
             onClick={() => file.current?.click()}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-ink px-6 py-3 font-medium text-ink transition hover:bg-canvas disabled:opacity-50"
           >
-            <ImageUp size={18} /> Wgraj własny obrazek
+            <ImageUp size={18} /> {t.logo.upload}
           </button>
           {overridden && (
             <button
@@ -145,7 +147,7 @@ export function LogoSheet({
               onClick={() => run(() => resetLogo(id, "auto"))}
               className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-medium text-ink transition hover:bg-canvas disabled:opacity-50"
             >
-              <RefreshCw size={18} /> Wróć do automatycznego
+              <RefreshCw size={18} /> {t.logo.auto}
             </button>
           )}
           {logo && (
@@ -155,7 +157,7 @@ export function LogoSheet({
               onClick={() => run(() => resetLogo(id, "monogram"))}
               className="py-2 text-sm font-medium text-muted underline underline-offset-4"
             >
-              Bez logo — pokaż literę
+              {t.logo.monogram}
             </button>
           )}
         </div>

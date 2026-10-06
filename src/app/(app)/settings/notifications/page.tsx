@@ -4,61 +4,68 @@ import { db } from "@/db";
 import { pushSubscriptions, settings } from "@/db/schema";
 import { Switch } from "@/components/switch";
 import { ScopeBadge } from "@/components/scope";
-import { Avatar, btn, PageHeader } from "@/components/ui";
+import { Avatar, btn } from "@/components/ui";
+import { PageHeader } from "@/components/page-header";
 import { updateReminderSettings } from "@/app/actions";
 import { loadAll } from "@/lib/data";
-import { dateShort, relative } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/server";
 import { pushConfigured, pushDiagnostics, publicVapidKey } from "@/lib/push";
 import { PushDevice } from "./push-device";
 import { RemoveDevice, SubNotifyToggle } from "./toggles";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Powiadomienia" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.settings.notifications };
+}
 
 export default async function NotificationsPage() {
-  const [[cfg], devices, { subs, today }] = await Promise.all([
+  const [[cfg], devices, { subs, today }, { t, f }] = await Promise.all([
     db.select().from(settings),
     db.select().from(pushSubscriptions).orderBy(asc(pushSubscriptions.createdAt)),
     loadAll(),
+    getI18n(),
   ]);
+  const n = t.notifications;
+  const { dateShort, relative } = f;
   const daysBefore = cfg?.remindDaysBefore ?? 3;
   const sameDay = cfg?.remindSameDay ?? true;
-  const live = subs.filter((s) => s.live).sort((a, b) => Number(b.notify) - Number(a.notify) || a.name.localeCompare(b.name, "pl"));
+  const live = subs.filter((s) => s.live).sort((a, b) => Number(b.notify) - Number(a.notify) || f.compare(a.name, b.name));
   const onCount = live.filter((s) => s.notify).length;
   const diag = pushDiagnostics();
   const checks: [string, boolean, string?][] = [
-    ["Klucz publiczny (VAPID_PUBLIC_KEY)", diag.publicKey],
-    ["Klucz prywatny (VAPID_PRIVATE_KEY)", diag.privateKey],
-    ["Klucze poprawne", diag.keysValid, diag.keysError],
-    ["Nadawca (VAPID_SUBJECT)", true, diag.subject],
-    ["Zadanie dzienne (CRON_SECRET)", diag.cronSecret],
-    ["Zarejestrowane urządzenia", devices.length > 0, String(devices.length)],
+    [n.checks.publicKey, diag.publicKey],
+    [n.checks.privateKey, diag.privateKey],
+    [n.checks.keysValid, diag.keysValid, diag.keysError],
+    [n.checks.subject, true, diag.subject],
+    [n.checks.cron, diag.cronSecret],
+    [n.checks.devices, devices.length > 0, String(devices.length)],
   ];
 
   return (
     <div className="flex max-w-2xl flex-col gap-12">
-      <PageHeader title="Powiadomienia" back="/settings" />
+      <PageHeader title={t.settings.notifications} back="/settings" />
 
       {!pushConfigured() ? (
         <p className="panel p-4 text-sm text-ink">
-          Brakuje kluczy powiadomień. Ustaw w Vercelu zmienne <code className="font-medium">VAPID_PUBLIC_KEY</code>,{" "}
-          <code className="font-medium">VAPID_PRIVATE_KEY</code> i <code className="font-medium">CRON_SECRET</code>, potem zrób Redeploy.
+          {n.missingKeys} <code className="font-medium">VAPID_PUBLIC_KEY</code>, <code className="font-medium">VAPID_PRIVATE_KEY</code>,{" "}
+          <code className="font-medium">CRON_SECRET</code>
         </p>
       ) : (
         <section className="-mt-4 flex flex-col gap-4">
-          <h2 className="heading text-lg">To urządzenie</h2>
+          <h2 className="heading text-lg">{n.thisDevice}</h2>
           <PushDevice publicKey={publicVapidKey()} />
           {devices.length > 0 && (
             <div>
-              <p className="caption mb-2">Urządzenia z powiadomieniami</p>
+              <p className="caption mb-2">{n.devices}</p>
               <ul className="divide-y divide-hairline border-y border-hairline">
                 {devices.map((d) => (
                   <li key={d.id} className="flex items-center gap-3 py-2.5">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-ink">{d.label ?? "Urządzenie"}</span>
+                      <span className="block truncate text-ink">{d.label ?? t.common.device}</span>
                       <span className="block text-xs text-muted">
-                        dodane {dateShort(d.createdAt.toISOString().slice(0, 10))}
-                        {d.lastSentAt && ` · ostatnio ${dateShort(d.lastSentAt.toISOString().slice(0, 10))}`}
+                        {n.added(dateShort(d.createdAt.toISOString().slice(0, 10)))}
+                        {d.lastSentAt && ` · ${n.lastSent(dateShort(d.lastSentAt.toISOString().slice(0, 10)))}`}
                       </span>
                     </span>
                     <RemoveDevice id={d.id} />
@@ -72,8 +79,8 @@ export default async function NotificationsPage() {
 
       <details className="group -mt-6">
         <summary className="cursor-pointer list-none text-sm text-muted [&::-webkit-details-marker]:hidden">
-          <span className="underline decoration-hairline underline-offset-4 group-open:hidden">Pokaż diagnostykę</span>
-          <span className="hidden underline decoration-hairline underline-offset-4 group-open:inline">Ukryj diagnostykę</span>
+          <span className="underline decoration-hairline underline-offset-4 group-open:hidden">{n.showDiag}</span>
+          <span className="hidden underline decoration-hairline underline-offset-4 group-open:inline">{n.hideDiag}</span>
         </summary>
         <ul className="mt-3 divide-y divide-hairline border-y border-hairline text-sm">
           {checks.map(([label, ok, note]) => (
@@ -88,46 +95,46 @@ export default async function NotificationsPage() {
       </details>
 
       <section className="flex flex-col gap-4 border-t border-hairline pt-10">
-        <h2 className="heading text-lg">Kiedy przypominać</h2>
+        <h2 className="heading text-lg">{n.whenTitle}</h2>
         <form action={updateReminderSettings} className="flex flex-col gap-4">
           <label className="flex items-center justify-between gap-4">
             <span>
-              <span className="block text-ink">Przed płatnością</span>
-              <span className="block text-sm text-muted">Ile dni wcześniej</span>
+              <span className="block text-ink">{n.before}</span>
+              <span className="block text-sm text-muted">{n.howManyDays}</span>
             </span>
             <select
               name="remindDaysBefore"
               defaultValue={daysBefore}
               className="rounded-full bg-canvas px-4 py-2 text-ink outline-none focus:ring-2 focus:ring-ink/10"
             >
-              <option value={0}>nie przypominaj</option>
+              <option value={0}>{n.dontRemind}</option>
               {[1, 2, 3, 5, 7].map((d) => (
                 <option key={d} value={d}>
-                  {d} {d === 1 ? "dzień" : "dni"} wcześniej
+                  {n.daysBefore(d)}
                 </option>
               ))}
             </select>
           </label>
           <label className="flex items-center justify-between gap-4">
             <span>
-              <span className="block text-ink">W dniu płatności</span>
-              <span className="block text-sm text-muted">Rano, w dniu terminu</span>
+              <span className="block text-ink">{n.sameDay}</span>
+              <span className="block text-sm text-muted">{n.sameDayHint}</span>
             </span>
-            <Switch name="remindSameDay" defaultChecked={sameDay} label="W dniu płatności" />
+            <Switch name="remindSameDay" defaultChecked={sameDay} label={n.sameDay} />
           </label>
-          <p className="text-xs text-muted">Przypomnienia wychodzą raz dziennie około 8–9 rano.</p>
-          <button className={`${btn.secondary} self-start`}>Zapisz</button>
+          <p className="text-xs text-muted">{n.sendTime}</p>
+          <button className={`${btn.secondary} self-start`}>{t.common.save}</button>
         </form>
       </section>
 
       <section className="flex flex-col gap-4 border-t border-hairline pt-10">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="heading text-lg">Które subskrypcje</h2>
+          <h2 className="heading text-lg">{n.whichTitle}</h2>
           <span className="text-sm text-muted">
-            {onCount} z {live.length}
+            {n.onOf(onCount, live.length)}
           </span>
         </div>
-        <p className="-mt-2 text-sm text-muted">Włącz dla płatności, które robisz ręcznie — te automatyczne zwykle nie potrzebują przypomnień.</p>
+        <p className="-mt-2 text-sm text-muted">{n.whichHint}</p>
         <ul className="divide-y divide-hairline border-y border-hairline">
           {live.map((s) => (
             <li key={s.id} className="flex items-center gap-3 py-2.5">

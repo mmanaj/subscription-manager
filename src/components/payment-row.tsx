@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { Payment } from "@/lib/data";
-import { dateShort, money, relative } from "@/lib/format";
-import { cycleLabel } from "@/lib/billing";
+import { getI18n } from "@/lib/i18n/server";
 import { PaidButton } from "./paid-button";
 import { ScopeBadge } from "./scope";
 import { Avatar } from "./ui";
 
-export function PaymentRow({ p, today }: { p: Payment; today: string }) {
+export async function PaymentRow({ p, today }: { p: Payment; today: string }) {
+  const { t, f } = await getI18n();
+  const { dateShort, money, relative } = f;
   const s = p.sub;
   return (
     <div className="-mx-3 flex items-center gap-2 rounded-[var(--radius-field)] pr-3 transition-colors hover:bg-surface-alt">
@@ -22,9 +23,9 @@ export function PaymentRow({ p, today }: { p: Payment; today: string }) {
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-ink">{s.name}</div>
           <div className="truncate text-sm text-muted">
-            {s.manual ? (p.paid ? "opłacone" : p.overdue ? <span className="text-ember">po terminie</span> : "ręcznie") : relative(p.date, today)}
+            {s.manual ? (p.paid ? t.status.paid : p.overdue ? <span className="text-ember">{t.status.overdue}</span> : t.status.manual) : relative(p.date, today)}
             {" · "}
-            {s.manual ? relative(p.date, today) : cycleLabel(s.intervalUnit, s.intervalCount)}
+            {s.manual ? relative(p.date, today) : f.cycle(s.intervalUnit, s.intervalCount)}
           </div>
         </div>
         <div className="text-right">

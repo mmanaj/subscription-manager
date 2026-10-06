@@ -2,26 +2,30 @@ import { notFound } from "next/navigation";
 import { deleteCard, saveCard } from "@/app/actions";
 import { CardForm } from "@/components/card-form";
 import { ConfirmButton } from "@/components/confirm-button";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/page-header";
+import { getI18n } from "@/lib/i18n/server";
 import { getCard } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Metoda płatności" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t.cards.editMeta };
+}
 
 export default async function EditCard(props: PageProps<"/cards/[id]/edit">) {
   const id = Number((await props.params).id);
-  const card = await getCard(id);
+  const [card, { t }] = await Promise.all([getCard(id), getI18n()]);
   if (!card) notFound();
   return (
     <div>
-      <PageHeader title={card.kind === "account" ? "Konto" : "Karta"} back="/cards" />
+      <PageHeader title={card.kind === "account" ? t.cards.account : t.cards.card} back="/cards" />
       <CardForm action={saveCard.bind(null, id)} card={card} />
       <ConfirmButton
         action={deleteCard.bind(null, id)}
-        confirm="Usunąć? Subskrypcje zostaną, tylko bez przypisanej płatności."
+        confirm={t.cards.deleteConfirm}
         className="mt-8 text-sm font-medium text-ember underline underline-offset-4"
       >
-        Usuń
+        {t.common.delete}
       </ConfirmButton>
     </div>
   );

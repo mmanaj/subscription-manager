@@ -86,24 +86,3 @@ export function isLive(s: BillingFields, today: ISODate): boolean {
 export function inTrial(s: BillingFields, today: ISODate): boolean {
   return !!s.trialEndDate && s.trialEndDate > today && s.status === "active";
 }
-
-export function cycleLabel(unit: IntervalUnit, count: number): string {
-  if (count === 1) return { day: "codziennie", week: "co tydzień", month: "co miesiąc", year: "co rok" }[unit];
-  if (unit === "month" && count === 3) return "co kwartał";
-  if (unit === "month" && count === 6) return "co pół roku";
-  const forms: Record<IntervalUnit, [string, string, string]> = {
-    day: ["dzień", "dni", "dni"],
-    week: ["tydzień", "tygodnie", "tygodni"],
-    month: ["miesiąc", "miesiące", "miesięcy"],
-    year: ["rok", "lata", "lat"],
-  };
-  return `co ${count} ${plural(count, forms[unit])}`;
-}
-
-export function plural(n: number, [one, few, many]: [string, string, string]): string {
-  if (n === 1) return one;
-  const d = n % 10;
-  const t = n % 100;
-  if (d >= 2 && d <= 4 && (t < 12 || t > 14)) return few;
-  return many;
-}

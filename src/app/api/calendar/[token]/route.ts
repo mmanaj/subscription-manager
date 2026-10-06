@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { addDays, addMonths } from "@/lib/dates";
 import { loadAll, paymentsBetween } from "@/lib/data";
+import { dict } from "@/lib/i18n";
+import { storedLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +22,17 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/calendar/[token
   const { token } = await ctx.params;
   if (!tokenOk(token.replace(/\.ics$/, ""))) return new Response("Not found", { status: 404 });
 
-  const data = await loadAll();
+  const [data, locale] = await Promise.all([loadAll(), storedLocale()]);
+  const t = dict(locale);
   const payments = paymentsBetween(data.subs, addDays(data.today, -31), addMonths(data.today, 12));
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
 
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//subs//PL",
+    `PRODID:-//subs//${locale.toUpperCase()}`,
     "CALSCALE:GREGORIAN",
-    "X-WR-CALNAME:Subskrypcje",
+    `X-WR-CALNAME:${esc(t.appName)}`,
     "X-PUBLISHED-TTL:PT6H",
     "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
   ];
@@ -45,14 +48,14 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/calendar/[token
       `DTEND;VALUE=DATE:${end}`,
       `SUMMARY:${esc(`💳 ${p.sub.name} — ${amount}`)}`,
       `DESCRIPTION:${esc(
-        [p.sub.card ? `Karta: ${p.sub.card.name}${p.sub.card.last4 ? ` ••${p.sub.card.last4}` : ""}` : "", p.sub.url ?? ""]
+        [p.sub.card ? `${t.ics.card}: ${p.sub.card.name}${p.sub.card.last4 ? ` ••${p.sub.card.last4}` : ""}` : "", p.sub.url ?? ""]
           .filter(Boolean)
           .join("\n"),
       )}`,
       "TRANSP:TRANSPARENT",
       "BEGIN:VALARM",
       "ACTION:DISPLAY",
-      `DESCRIPTION:${esc(`Jutro płatność: ${p.sub.name}`)}`,
+      `DESCRIPTION:${esc(t.ics.alarm(p.sub.name))}`,
       "TRIGGER:-PT12H",
       "END:VALARM",
       "END:VEVENT",

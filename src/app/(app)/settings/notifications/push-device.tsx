@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { BellRing, Send, Smartphone } from "lucide-react";
 import { removePushDevice, savePushSubscription, sendTestPush } from "@/app/actions";
 import { btn } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 
 type State = "loading" | "unsupported" | "ios-install" | "denied" | "off" | "on";
 
@@ -13,14 +14,16 @@ function base64ToBytes(b64: string) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
-function deviceLabel() {
+function deviceLabel(fallback: string) {
   const ua = navigator.userAgent;
-  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : "Urządzenie";
+  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : fallback;
   const browser = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "";
   return [os, browser].filter(Boolean).join(" · ");
 }
 
 export function PushDevice({ publicKey }: { publicKey: string }) {
+  const { t } = useI18n();
+  const n = t.notifications;
   const [state, setState] = useState<State>("loading");
   const [msg, setMsg] = useState<string>();
   const [pending, start] = useTransition();
@@ -37,10 +40,11 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
         // Keep the server copy fresh (push services rotate endpoints now and then).
-        await savePushSubscription(sub.toJSON(), deviceLabel());
+        await savePushSubscription(sub.toJSON(), deviceLabel(t.common.device));
         setState("on");
       } else setState("off");
     })().catch(() => setState("unsupported"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per mount
   }, []);
 
   const enable = () =>
@@ -54,11 +58,11 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
         // A stale subscription made with an old key would make subscribe() fail — drop it first.
         await (await reg.pushManager.getSubscription())?.unsubscribe();
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) });
-        const res = await savePushSubscription(sub.toJSON(), deviceLabel());
+        const res = await savePushSubscription(sub.toJSON(), deviceLabel(t.common.device));
         if (res.error) return setMsg(res.error);
         setState("on");
       } catch (e) {
-        setMsg(`Nie udało się włączyć: ${(e as Error).message || e}`);
+        setMsg(n.enableFailed(String((e as Error).message || e)));
       }
     });
 
@@ -78,9 +82,7 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
       const res = await sendTestPush();
       const head =
         res.error ??
-        (res.sent === res.total
-          ? `Wysłano na ${res.sent} ${res.sent === 1 ? "urządzenie" : "urządzenia"}. Jeśli nic nie przyszło, sprawdź tryb skupienia i ustawienia powiadomień aplikacji.`
-          : `Wysłano na ${res.sent} z ${res.total} urządzeń. Nie dotarło do:`);
+        (res.sent === res.total ? n.sentAll(res.sent ?? 0) : n.sentSome(res.sent ?? 0, res.total ?? 0));
       setMsg([head, ...(res.details ?? [])].join("\n"));
     });
 
@@ -92,44 +94,26 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-medium text-ink">
-            {state === "on"
-              ? "Włączone na tym urządzeniu"
-              : state === "loading"
-                ? "Sprawdzam…"
-                : state === "denied"
-                  ? "Powiadomienia zablokowane"
-                  : state === "ios-install"
-                    ? "Najpierw dodaj aplikację do ekranu"
-                    : state === "unsupported"
-                      ? "Ta przeglądarka nie obsługuje powiadomień"
-                      : "Wyłączone na tym urządzeniu"}
+            {n.state[state === "ios-install" ? "iosInstall" : state]}
           </p>
           <p className="mt-0.5 text-sm text-muted">
-            {state === "ios-install"
-              ? "Na iPhonie powiadomienia działają tylko z ekranu początkowego: w Safari stuknij Udostępnij → Do ekranu początkowego, otwórz aplikację z ikony i wróć tutaj."
-              : state === "denied"
-                ? "Zezwól na powiadomienia dla tej strony w ustawieniach przeglądarki lub telefonu, potem odśwież."
-                : state === "on"
-                  ? "Przypomnienia przyjdą tutaj. Możesz włączyć je na kilku urządzeniach."
-                  : state === "off"
-                    ? "Włącz, żeby dostawać przypomnienia o płatnościach na ten telefon lub komputer."
-                    : ""}
+            {state === "ios-install" ? n.stateHint.iosInstall : state === "denied" || state === "on" || state === "off" ? n.stateHint[state] : ""}
           </p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {state === "off" && (
           <button type="button" onClick={enable} disabled={pending} className={btn.primary}>
-            <BellRing size={16} /> Włącz powiadomienia
+            <BellRing size={16} /> {n.enable}
           </button>
         )}
         {state === "on" && (
           <>
             <button type="button" onClick={test} disabled={pending} className={btn.primary}>
-              <Send size={16} /> Wyślij testowe
+              <Send size={16} /> {n.test}
             </button>
             <button type="button" onClick={disable} disabled={pending} className={btn.secondary}>
-              Wyłącz tutaj
+              {n.disableHere}
             </button>
           </>
         )}

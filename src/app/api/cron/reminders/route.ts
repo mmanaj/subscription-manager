@@ -2,7 +2,8 @@ import { timingSafeEqual } from "node:crypto";
 import { db } from "@/db";
 import { notificationLog, settings } from "@/db/schema";
 import { loadAll } from "@/lib/data";
-import { dateLong, money } from "@/lib/format";
+import { i18n } from "@/lib/i18n";
+import { storedLocale } from "@/lib/i18n/server";
 import { pushConfigured, sendToAll } from "@/lib/push";
 import { dueReminders } from "@/lib/reminders";
 
@@ -23,7 +24,8 @@ export async function GET(req: Request) {
 
   const [cfg] = await db.select().from(settings);
   const opts = { daysBefore: cfg?.remindDaysBefore ?? 3, sameDay: cfg?.remindSameDay ?? true };
-  const { subs, today } = await loadAll();
+  const [{ subs, today }, locale] = await Promise.all([loadAll(), storedLocale()]);
+  const { t, f } = i18n(locale);
   const due = dueReminders(subs, today, opts);
 
   const results = [];
@@ -39,12 +41,11 @@ export async function GET(req: Request) {
     if (!claimed.length) continue;
 
     const s = subs.find((x) => x.id === r.subId)!;
-    const amount = money(s.myAmountOn(r.chargeDate), s.currency);
+    const amount = f.money(s.myAmountOn(r.chargeDate), s.currency);
     const card = s.card ? ` · ${s.card.name}${s.card.last4 ? ` ••${s.card.last4}` : ""}` : "";
-    const days = opts.daysBefore === 1 ? "Jutro" : `Za ${opts.daysBefore} dni`;
     const res = await sendToAll({
-      title: r.kind === "day" ? `Dziś płatność: ${s.name}` : `${days}: ${s.name}`,
-      body: `${amount} · ${dateLong(r.chargeDate)}${card}`,
+      title: r.kind === "day" ? t.push.dueToday(s.name) : t.push.dueIn(opts.daysBefore, s.name),
+      body: `${amount} · ${f.dateLong(r.chargeDate)}${card}`,
       url: `/subscriptions/${s.id}`,
       tag: `sub-${s.id}-${r.chargeDate}-${r.kind}`,
     });

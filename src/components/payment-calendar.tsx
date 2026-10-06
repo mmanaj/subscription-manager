@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { CalendarPayment } from "@/lib/data";
+import { useI18n } from "./i18n-provider";
 import { Avatar } from "./ui";
-
-const WEEKDAYS = ["pn", "wt", "śr", "cz", "pt", "so", "nd"];
 
 function monthKey(d: string) {
   return d.slice(0, 7);
@@ -18,12 +17,9 @@ function shiftMonth(key: string, n: number) {
   return d.toISOString().slice(0, 7);
 }
 
-const pln = (n: number) =>
-  new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN", maximumFractionDigits: 0 }).format(n);
-const money = (n: number, c: string) =>
-  new Intl.NumberFormat("pl-PL", { style: "currency", currency: c, minimumFractionDigits: 2 }).format(n);
-
 export function PaymentCalendar({ payments, today }: { payments: CalendarPayment[]; today: string }) {
+  const { t, f } = useI18n();
+  const pln = (n: number) => f.money(n, "PLN", { compact: true });
   const first = monthKey(today);
   const last = shiftMonth(first, 5);
   const [month, setMonth] = useState(first);
@@ -45,9 +41,9 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
   const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7; // Monday-first
   const cells = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`)];
   const monthTotal = payments.filter((p) => monthKey(p.date) === month).reduce((a, p) => a + p.pln, 0);
-  const monthLabel = new Intl.DateTimeFormat("pl-PL", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1)));
+  const monthLabel = new Intl.DateTimeFormat(f.tag, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1)));
   const dayList = byDay.get(selected) ?? [];
-  const selectedLabel = new Intl.DateTimeFormat("pl-PL", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(
+  const selectedLabel = new Intl.DateTimeFormat(f.tag, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(
     new Date(`${selected}T00:00:00Z`),
   );
 
@@ -56,7 +52,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
       <div className="mb-3 flex items-center justify-between gap-2">
         <button
           type="button"
-          aria-label="Poprzedni miesiąc"
+          aria-label={t.calendar.prev}
           disabled={month <= first}
           onClick={() => go(-1)}
           className="rounded-full p-2 text-ink transition hover:bg-canvas disabled:opacity-30"
@@ -65,11 +61,11 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
         </button>
         <div key={month} className={`text-center ${dir === "next" ? "slide-from-right" : dir === "prev" ? "slide-from-left" : ""}`}>
           <div className="font-semibold capitalize tracking-tight text-ink">{monthLabel}</div>
-          <div className="tabular text-xs text-muted">{monthTotal ? pln(monthTotal) : "bez płatności"}</div>
+          <div className="tabular text-xs text-muted">{monthTotal ? pln(monthTotal) : t.calendar.noPayments}</div>
         </div>
         <button
           type="button"
-          aria-label="Następny miesiąc"
+          aria-label={t.calendar.next}
           disabled={month >= last}
           onClick={() => go(1)}
           className="rounded-full p-2 text-ink transition hover:bg-canvas disabled:opacity-30"
@@ -82,7 +78,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
         key={month}
         className={`grid grid-cols-7 gap-1 text-center ${dir === "next" ? "slide-from-right" : dir === "prev" ? "slide-from-left" : ""}`}
       >
-        {WEEKDAYS.map((d) => (
+        {t.calendar.weekdays.map((d) => (
           <div key={d} className="pb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
             {d}
           </div>
@@ -99,7 +95,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
               type="button"
               onClick={() => setSelected(d)}
               aria-pressed={isSel}
-              aria-label={`${Number(d.slice(8))}${items.length ? `, ${items.length} płatn.` : ""}`}
+              aria-label={t.calendar.dayAria(Number(d.slice(8)), items.length)}
               className={`flex aspect-square min-h-11 flex-col active:scale-95 items-center justify-start gap-0.5 rounded-card pt-1 transition ${
                 items.length || isSel ? "bg-canvas" : "hover:bg-canvas"
               } ${isSel ? "ring-2 ring-ink" : ""} ${past && !isSel ? "opacity-45" : ""}`}
@@ -127,7 +123,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
       <div key={selected} className="fade-in mt-4 border-t border-hairline pt-3">
         <div className="mb-1 text-sm font-medium text-ink first-letter:uppercase">{selectedLabel}</div>
         {dayList.length === 0 ? (
-          <p className="text-sm text-muted">Nic nie schodzi.</p>
+          <p className="text-sm text-muted">{t.calendar.nothing}</p>
         ) : (
           <ul className="flex flex-col">
             {dayList.map((p) => (
@@ -135,7 +131,7 @@ export function PaymentCalendar({ payments, today }: { payments: CalendarPayment
                 <Link href={`/subscriptions/${p.id}`} className="flex items-center gap-2 rounded-card py-1.5 hover:bg-canvas">
                   <Avatar name={p.name} color={p.color} logo={p.logo} size={24} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{p.name}</span>
-                  <span className="tabular text-sm text-ink-soft">{money(p.amount, p.currency)}</span>
+                  <span className="tabular text-sm text-ink-soft">{f.money(p.amount, p.currency)}</span>
                 </Link>
               </li>
             ))}
