@@ -1,41 +1,51 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { amountParts } from "@/lib/format";
 
 const KEY = "subs:counted";
 
 /**
- * Big figure that counts up from zero on the first dashboard view of a session. Later views (and
- * reduced-motion users) get the final number straight away — a counter every time gets old fast.
+ * Big figure that counts up from zero on the first dashboard view of a session, and glides to the
+ * new value when it changes (e.g. switching Prywatne / Wspólne / Firmowe). Reduced motion: no tween.
  */
 export function CountUpMoney({ value, className = "", currency = "zł" }: { value: number; className?: string; currency?: string }) {
   const [shown, setShown] = useState(value);
+  const current = useRef(value);
 
-  // Layout effect: decide before the first paint, so the final number never flashes before counting.
+  // Layout effect: decide before paint, so a stale number never flashes.
   useLayoutEffect(() => {
-    let seen = true;
+    let first = false;
     try {
-      seen = sessionStorage.getItem(KEY) === "1";
+      first = sessionStorage.getItem(KEY) !== "1";
     } catch {}
-    if (seen || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const from = first ? 0 : current.current;
+    if (reduce || from === value) {
+      current.current = value;
+      setShown(value);
+      return;
+    }
 
     const start = performance.now();
-    const duration = 900;
+    const duration = first ? 900 : 450;
     let frame = requestAnimationFrame(function tick(now) {
       const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 4); // strong ease-out: quick start, gentle landing
-      setShown(value * eased);
+      const eased = 1 - Math.pow(1 - t, 4); // strong ease-out
+      const v = from + (value - from) * eased;
+      current.current = v;
+      setShown(v);
       if (t < 1) frame = requestAnimationFrame(tick);
       else
         try {
           sessionStorage.setItem(KEY, "1");
         } catch {}
     });
-    setShown(0);
+    setShown(from);
     // Interrupted (navigation, re-render): land on the real number.
     return () => {
       cancelAnimationFrame(frame);
+      current.current = value;
       setShown(value);
     };
   }, [value]);

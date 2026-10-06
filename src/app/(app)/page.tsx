@@ -50,7 +50,10 @@ export default async function Dashboard(props: PageProps<"/">) {
         )}
         <section className="rise grid gap-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-end sm:gap-12">
           <div>
-            <p className="caption">Płacisz średnio miesięcznie</p>
+            <p className="caption">
+              Płacisz średnio miesięcznie
+              {scope && <> · {{ personal: "prywatne", shared: "wspólne", business: "firmowe" }[scope]}</>}
+            </p>
             <CountUpMoney value={st.monthly} className="mt-2 block text-5xl sm:text-6xl" />
             <p className="mt-3 text-muted">
               <span className="tabular font-medium text-ink">{money(st.yearly, "PLN", { compact: true })}</span> rocznie
