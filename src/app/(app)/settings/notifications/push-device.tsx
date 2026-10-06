@@ -76,7 +76,11 @@ export function PushDevice({ publicKey }: { publicKey: string }) {
   const test = () =>
     start(async () => {
       const res = await sendTestPush();
-      const head = res.error ?? `Wysłano na ${res.sent} ${res.sent === 1 ? "urządzenie" : "urządzenia"}. Jeśli nic nie przyszło, sprawdź tryb skupienia i ustawienia powiadomień aplikacji.`;
+      const head =
+        res.error ??
+        (res.sent === res.total
+          ? `Wysłano na ${res.sent} ${res.sent === 1 ? "urządzenie" : "urządzenia"}. Jeśli nic nie przyszło, sprawdź tryb skupienia i ustawienia powiadomień aplikacji.`
+          : `Wysłano na ${res.sent} z ${res.total} urządzeń. Nie dotarło do:`);
       setMsg([head, ...(res.details ?? [])].join("\n"));
     });
 

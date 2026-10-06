@@ -3,20 +3,16 @@ import { eq, sql } from "drizzle-orm";
 import webpush from "web-push";
 import { db } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
+import { cleanEnv as clean, normalizeSubject } from "./push-subject";
 
 export type PushPayload = { title: string; body: string; url?: string; tag?: string };
 export type DeviceResult = { id: number; label: string | null; ok: boolean; status?: number; detail?: string };
 
-// Values pasted into Vercel often carry stray spaces/newlines or quotes — normalise them.
-const clean = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
 
 function vapid() {
   const publicKey = clean(process.env.VAPID_PUBLIC_KEY);
   const privateKey = clean(process.env.VAPID_PRIVATE_KEY);
-  let subject = clean(process.env.VAPID_SUBJECT).replace(/\s+/g, "");
-  if (!subject) subject = "mailto:owner@example.com";
-  else if (!/^(mailto:|https:\/\/)/.test(subject)) subject = `mailto:${subject}`;
-  return { publicKey, privateKey, subject };
+  return { publicKey, privateKey, subject: normalizeSubject(process.env.VAPID_SUBJECT) };
 }
 
 export function publicVapidKey() {

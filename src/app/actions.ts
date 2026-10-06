@@ -327,7 +327,7 @@ export async function removePushDevice(endpointOrId: string | number) {
   revalidatePath("/settings/notifications");
 }
 
-export async function sendTestPush(): Promise<{ error?: string; sent?: number; details?: string[] }> {
+export async function sendTestPush(): Promise<{ error?: string; sent?: number; total?: number; details?: string[] }> {
   await requireAuth();
   try {
     const res = await sendToAll({
@@ -342,7 +342,7 @@ export async function sendTestPush(): Promise<{ error?: string; sent?: number; d
       .map((r) => `${r.label ?? "Urządzenie"}: ${r.status ? `HTTP ${r.status}` : "błąd"}${r.detail ? ` — ${r.detail}` : ""}${r.status === 404 || r.status === 410 ? " (usunięte — włącz ponownie)" : ""}`);
     if (!res.results.length) return { error: "Brak zarejestrowanych urządzeń. Włącz powiadomienia na tym urządzeniu." };
     if (!res.sent) return { error: "Serwer push odrzucił wysyłkę.", details };
-    return { sent: res.sent, details };
+    return { sent: res.sent, total: res.results.length, details };
   } catch (e) {
     return { error: `Błąd konfiguracji: ${(e as Error).message}` };
   }
