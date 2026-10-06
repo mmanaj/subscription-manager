@@ -1,7 +1,7 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { cards, logos, priceChanges, subscriptions, type Card, type SubscriptionScope, type Subscription } from "@/db/schema";
+import { cards, logos, payments, priceChanges, subscriptions, type Card, type SubscriptionScope, type Subscription } from "@/db/schema";
 import { chargesBetween, cycleLabel, inTrial, isLive, monthlyFactor, nextCharge } from "./billing";
 import { addDays, addMonths, endOfMonth, startOfMonth, today as todayFn, type ISODate } from "./dates";
 import { getRates, toPLN, type Rates } from "./fx";
@@ -23,6 +23,8 @@ export type EnrichedSub = Subscription & {
   myAmountOn: (date: ISODate) => number;
   /** My share on a given day, PLN */
   plnOn: (date: ISODate) => number;
+  /** Charge dates of a manual subscription marked as paid */
+  paidDates: Set<ISODate>;
   /** My share converted to PLN, per charge */
   chargePLN: number;
   /** Average monthly cost in PLN (my share); 0 when not live */
@@ -53,6 +55,7 @@ function enrich(
   today: ISODate,
   priceEvents: (PriceEvent & { id: number })[],
   fullBleed: boolean | undefined,
+  paidDates: Set<ISODate>,
 ): EnrichedSub {
   const split = Math.max(1, s.splitWith);
   const myAmountOn = (d: ISODate) => amountOn(Number(s.amount), priceEvents, d) / split;
@@ -68,6 +71,7 @@ function enrich(
     amountNum,
     myAmount,
     priceEvents,
+    paidDates,
     myAmountOn,
     plnOn,
     chargePLN,
@@ -80,19 +84,21 @@ function enrich(
 
 export async function loadAll() {
   const today = todayFn();
-  const [subs, cardList, rates, changes, logoMeta] = await Promise.all([
+  const [subs, cardList, rates, changes, logoMeta, paid] = await Promise.all([
     db.select().from(subscriptions).orderBy(asc(subscriptions.name)),
     listCards(),
     getRates(),
     db.select().from(priceChanges).orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id)),
     db.select({ id: logos.subscriptionId, fullBleed: logos.fullBleed }).from(logos),
+    db.select({ subId: payments.subscriptionId, date: payments.chargeDate }).from(payments),
   ]);
+  const paidFor = (id: number) => new Set(paid.filter((p) => p.subId === id).map((p) => p.date));
   const bleed = new Map(logoMeta.map((l) => [l.id, l.fullBleed]));
   const eventsFor = (id: number) =>
     changes
       .filter((c) => c.subscriptionId === id)
       .map((c) => ({ id: c.id, effectiveDate: c.effectiveDate, oldAmount: Number(c.oldAmount), newAmount: Number(c.newAmount) }));
-  return { today, rates, cards: cardList, subs: subs.map((s) => enrich(s, cardList, rates, today, eventsFor(s.id), bleed.get(s.id))) };
+  return { today, rates, cards: cardList, subs: subs.map((s) => enrich(s, cardList, rates, today, eventsFor(s.id), bleed.get(s.id), paidFor(s.id))) };
 }
 
 export async function loadOne(id: number) {
@@ -101,11 +107,25 @@ export async function loadOne(id: number) {
 }
 
 /** amount = my share in the subscription's currency, pln = same in PLN — both at that day's price */
-export type Payment = { sub: EnrichedSub; date: ISODate; amount: number; pln: number };
+/**
+ * amount = my share in the subscription's currency, pln = same in PLN — both at that day's price.
+ * paid: automatic charges count as paid once their day has passed; manual ones only when marked.
+ */
+export type Payment = { sub: EnrichedSub; date: ISODate; amount: number; pln: number; paid: boolean; overdue: boolean };
 
-export function paymentsBetween(subs: EnrichedSub[], from: ISODate, to: ISODate): Payment[] {
+export function isPaid(sub: EnrichedSub, date: ISODate, today: ISODate) {
+  return sub.manual ? sub.paidDates.has(date) : date < today;
+}
+
+export function paymentsBetween(subs: EnrichedSub[], from: ISODate, to: ISODate, today: ISODate = todayFn()): Payment[] {
   return subs
-    .flatMap((sub) => chargesBetween(sub, from, to, sub.status === "cancelled" && !!sub.endDate).map((date) => ({ sub, date, amount: sub.myAmountOn(date), pln: sub.plnOn(date) })))
+    .flatMap((sub) =>
+      chargesBetween(sub, from, to, sub.status === "cancelled" && !!sub.endDate).map((date) => {
+        const paid = isPaid(sub, date, today);
+        const overdue = sub.manual && !paid && date < today && (!sub.manualSince || date >= sub.manualSince);
+        return { sub, date, amount: sub.myAmountOn(date), pln: sub.plnOn(date), paid, overdue };
+      }),
+    )
     .sort((a, b) => a.date.localeCompare(b.date) || b.pln - a.pln);
 }
 
@@ -131,7 +151,14 @@ export type CalendarPayment = {
   pln: number;
 };
 
-export type Alert = { kind: "trial" | "card" | "ending" | "fx" | "price"; title: string; detail: string; href?: string };
+export type Alert = {
+  kind: "trial" | "card" | "ending" | "fx" | "price" | "unpaid";
+  title: string;
+  detail: string;
+  href?: string;
+  /** For "unpaid": lets the alert offer a mark-as-paid button */
+  pay?: { subId: number; date: ISODate };
+};
 
 export const SCOPES: Record<SubscriptionScope, { label: string; plural: string }> = {
   personal: { label: "Prywatna", plural: "Prywatne" },
@@ -154,7 +181,9 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
   const monthEnd = endOfMonth(today);
   const thisMonth = paymentsBetween(subs, monthStart, monthEnd);
   const thisMonthTotal = sum(thisMonth.map((p) => p.pln));
-  const thisMonthPaid = sum(thisMonth.filter((p) => p.date < today).map((p) => p.pln));
+  const thisMonthPaid = sum(thisMonth.filter((p) => p.paid).map((p) => p.pln));
+  // Manual charges past due and not ticked off (last month only — older ones predate tracking).
+  const overdue = paymentsBetween(subs, addDays(today, -31), addDays(today, -1), today).filter((p) => p.overdue);
 
   const next30 = paymentsBetween(subs, today, addDays(today, 30));
   const calendar: CalendarPayment[] = paymentsBetween(subs, monthStart, endOfMonth(addMonths(today, 5))).map((p) => ({
@@ -183,14 +212,20 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope?
   );
   const byCard = group(
     (s) => s.card,
-    (c) => (c ? c.name : "Bez karty"),
+    (c) => (c ? c.name : "Nieprzypisane"),
   );
   const byScope = group(
     (s) => s.scope,
     (k) => SCOPES[k].plural,
   );
 
-  const alerts: Alert[] = [];
+  const alerts: Alert[] = overdue.map((p) => ({
+    kind: "unpaid",
+    title: `Nieopłacone: ${p.sub.name}`,
+    detail: `${money(p.amount, p.sub.currency)} · termin ${dateShort(p.date)}`,
+    href: `/subscriptions/${p.sub.id}`,
+    pay: { subId: p.sub.id, date: p.date },
+  }));
   for (const s of live) {
     if (s.trial && s.trialEndDate && s.trialEndDate <= addDays(today, 7)) {
       alerts.push({

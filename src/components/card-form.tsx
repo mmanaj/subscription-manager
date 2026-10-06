@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { ShieldCheck } from "lucide-react";
-import type { Card } from "@/db/schema";
+import type { Card, PaymentMethodKind } from "@/db/schema";
 import type { FormState } from "@/app/actions";
 import { BRANDS, detectBrand, formatExpiryInput, parseExpiry } from "@/lib/card-brand";
 import { ColorPicker, Field, inputCls, Submit, submitWithoutReset } from "./form-bits";
@@ -12,6 +12,8 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
   const [state, formAction, pending] = useActionState(action, undefined);
   const [, startTransition] = useTransition();
   const e = state?.fieldErrors ?? {};
+  const [kind, setKind] = useState<PaymentMethodKind>(card?.kind ?? "card");
+  const isCard = kind === "card";
   const [name, setName] = useState(card?.name ?? "");
   const [brand, setBrand] = useState(card?.brand ?? "");
   const [last4, setLast4] = useState(card?.last4 ?? "");
@@ -38,12 +40,38 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
 
   return (
     <form onSubmit={submitWithoutReset(formAction, startTransition)} className="flex max-w-xl flex-col gap-6">
+      <fieldset>
+        <legend className="mb-1.5 text-sm font-medium text-ink">Rodzaj</legend>
+        <input type="hidden" name="kind" value={kind} />
+        <div className="inline-grid grid-cols-2 rounded-full bg-hairline/60 p-1">
+          {(
+            [
+              ["card", "Karta"],
+              ["account", "Konto bankowe"],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={kind === k}
+              onClick={() => setKind(k)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${kind === k ? "bg-paper text-ink shadow-card" : "text-muted hover:text-ink"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
       <div className="flex items-center gap-4 panel p-4">
-        <CardThumb color={color} brand={brand || null} last4={last4} width={128} />
+        <CardThumb kind={kind} color={color} brand={isCard ? brand || null : null} last4={last4} width={128} />
         <div className="min-w-0">
-          <div className="truncate font-medium text-ink">{name || "Nowa karta"}</div>
+          <div className="truncate font-medium text-ink">{name || (isCard ? "Nowa karta" : "Nowe konto")}</div>
           <div className="text-sm text-muted">
-            {[[brand, last4 && `••${last4}`].filter(Boolean).join(" "), exp && `${String(exp.month).padStart(2, "0")}/${String(exp.year).slice(-2)}`]
+            {(isCard
+              ? [[brand, last4 && `••${last4}`].filter(Boolean).join(" "), exp && `${String(exp.month).padStart(2, "0")}/${String(exp.year).slice(-2)}`]
+              : ["Konto bankowe", last4 && `••${last4}`]
+            )
               .filter(Boolean)
               .join(" · ") || "Podgląd"}
           </div>
@@ -52,11 +80,12 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
 
       <p className="flex items-start gap-2 rounded-card bg-canvas px-4 py-3 text-sm text-ink">
         <ShieldCheck size={18} className="mt-0.5 shrink-0" />
-        Wystarczą 4 ostatnie cyfry i data ważności. Pełnego numeru ani CVV nie podawaj — aplikacja ich nie potrzebuje i nie
-        zapisuje.
+        {isCard
+          ? "Wystarczą 4 ostatnie cyfry i data ważności. Pełnego numeru ani CVV nie podawaj — aplikacja ich nie potrzebuje i nie zapisuje."
+          : "Wystarczy nazwa i opcjonalnie 4 ostatnie cyfry numeru konta. Pełnego numeru nie podawaj — nie jest potrzebny."}
       </p>
 
-      <Field label="Nazwa" hint="np. mBank, Revolut, firmowa" error={e.name}>
+      <Field label="Nazwa" hint={isCard ? "np. mBank, Revolut, firmowa" : "np. Konto prywatne, ING wspólne"} error={e.name}>
         <input
           name="name"
           required
@@ -68,9 +97,9 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
         />
       </Field>
 
-      <fieldset className="flex flex-col gap-1.5">
+      <input type="hidden" name="brand" value={isCard ? brand : ""} />
+      <fieldset className={isCard ? "flex flex-col gap-1.5" : "hidden"}>
         <legend className="mb-1.5 text-sm font-medium text-ink">Typ</legend>
-        <input type="hidden" name="brand" value={brand} />
         <div className="flex flex-wrap gap-2">
           {BRANDS.map((b) => (
             <button
@@ -89,7 +118,7 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
       </fieldset>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Ostatnie 4 cyfry" error={e.last4}>
+        <Field label={isCard ? "Ostatnie 4 cyfry" : "Końcówka konta"} hint={isCard ? undefined : "opcjonalnie"} error={e.last4}>
           <input
             name="last4"
             inputMode="numeric"
@@ -101,7 +130,7 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
             aria-invalid={!!e.last4}
           />
         </Field>
-        <Field label="Ważna do" error={expiryError ?? e.expMonth ?? e.expYear}>
+        <Field label="Ważna do" error={expiryError ?? e.expMonth ?? e.expYear} className={isCard ? "" : "invisible"}>
           <input
             inputMode="numeric"
             autoComplete="off"
@@ -111,8 +140,8 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
             className={`${inputCls} tabular`}
             aria-invalid={!!expiryError}
           />
-          <input type="hidden" name="expMonth" value={exp?.month ?? ""} />
-          <input type="hidden" name="expYear" value={exp?.year ?? ""} />
+          <input type="hidden" name="expMonth" value={isCard ? (exp?.month ?? "") : ""} />
+          <input type="hidden" name="expYear" value={isCard ? (exp?.year ?? "") : ""} />
         </Field>
       </div>
       {trimmedNotice && (
@@ -127,7 +156,7 @@ export function CardForm({ action, card }: { action: (p: FormState, fd: FormData
         <ColorPicker name="color" value={color} onChange={setColor} />
       </div>
       {state?.error && <p className="rounded-card bg-ember/10 px-4 py-3 text-sm font-medium text-ember">{state.error}</p>}
-      <Submit pending={pending}>{card ? "Zapisz kartę" : "Dodaj kartę"}</Submit>
+      <Submit pending={pending}>{card ? "Zapisz" : isCard ? "Dodaj kartę" : "Dodaj konto"}</Submit>
     </form>
   );
 }

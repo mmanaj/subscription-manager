@@ -61,7 +61,7 @@ export default async function SettingsPage() {
 
       <section className="flex flex-col gap-3 border-t border-hairline pt-10">
         <h2 className="heading text-lg">Kopia danych</h2>
-        <p className="text-muted">Wszystkie subskrypcje i karty jako JSON.</p>
+        <p className="text-muted">Wszystkie subskrypcje, karty i konta jako JSON.</p>
         <a href="/api/export" className={`${btn.outline} self-start`}>
           Pobierz eksport
         </a>

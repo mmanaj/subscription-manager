@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { cards, categories, priceChanges, pushSubscriptions, settings, subscriptions } from "@/db/schema";
+import { cards, categories, payments, priceChanges, pushSubscriptions, settings, subscriptions } from "@/db/schema";
 import { endSession, passwordMatches, requireAuth, startSession } from "@/lib/auth";
 import { nextCharge } from "@/lib/billing";
 import { addDays, today } from "@/lib/dates";
@@ -49,6 +49,10 @@ const subscriptionSchema = z
       .string()
       .optional()
       .transform((v) => v === "on"),
+    manual: z
+      .string()
+      .optional()
+      .transform((v) => v === "on"),
     cardId: optStr.transform((v) => (v ? Number(v) : null)),
     category: optStr,
     splitWith: z.coerce.number().int().min(1).max(20),
@@ -85,6 +89,8 @@ export async function saveSubscription(id: number | null, _prev: FormState, form
   if (id) {
     const [prev] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
     needsLogo = !prev?.logoCheckedAt || prev.name !== values.name || prev.url !== values.url;
+    // Track when manual mode started; charges before that can't be "overdue".
+    Object.assign(values, { manualSince: values.manual ? (prev?.manual ? prev.manualSince : today()) : null });
     const priceChanged = prev && Number(prev.amount) !== Number(values.amount);
     await db.transaction(async (tx) => {
       if (priceChanged && priceMode === "change") {
@@ -102,6 +108,7 @@ export async function saveSubscription(id: number | null, _prev: FormState, form
       }
     });
   } else {
+    Object.assign(values, { manualSince: values.manual ? today() : null });
     const [row] = await db.insert(subscriptions).values(values).returning({ id: subscriptions.id });
     savedId = row.id;
   }
@@ -300,6 +307,15 @@ export async function deleteCategory(name: string) {
   refreshAll();
 }
 
+/** Ticks a manual charge off as paid (or undoes it). */
+export async function markPaid(subId: number, chargeDate: string, paid: boolean) {
+  await requireAuth();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(chargeDate)) return;
+  if (paid) await db.insert(payments).values({ subscriptionId: subId, chargeDate }).onConflictDoNothing();
+  else await db.delete(payments).where(and(eq(payments.subscriptionId, subId), eq(payments.chargeDate, chargeDate)));
+  refreshAll();
+}
+
 /* ── Push notifications ─────────────────────────────────────────────────────────────────── */
 
 const pushSubSchema = z.object({
@@ -366,7 +382,8 @@ export async function setSubscriptionNotify(id: number, notify: boolean) {
 }
 
 const cardSchema = z.object({
-  name: z.string().trim().min(1, "Podaj nazwę karty"),
+  kind: z.enum(["card", "account"]).default("card"),
+  name: z.string().trim().min(1, "Podaj nazwę"),
   brand: optStr,
   last4: optStr.refine((v) => v === null || /^\d{4}$/.test(v), "4 cyfry"),
   expMonth: optStr.transform((v) => (v ? Number(v) : null)).refine((v) => v === null || (v >= 1 && v <= 12), "1–12"),

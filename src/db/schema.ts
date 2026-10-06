@@ -13,11 +13,14 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const intervalUnit = pgEnum("interval_unit", ["day", "week", "month", "year"]);
+export const paymentMethodKind = pgEnum("payment_method_kind", ["card", "account"]);
 export const subscriptionScope = pgEnum("subscription_scope", ["personal", "shared", "business"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "paused", "cancelled"]);
 
+/** Payment methods: cards and bank accounts (table name kept for compatibility). */
 export const cards = pgTable("cards", {
   id: serial("id").primaryKey(),
+  kind: paymentMethodKind("kind").notNull().default("card"),
   name: text("name").notNull(),
   brand: text("brand"),
   last4: varchar("last4", { length: 4 }),
@@ -54,6 +57,10 @@ export const subscriptions = pgTable("subscriptions", {
   logoCheckedAt: timestamp("logo_checked_at", { withTimezone: true }),
   /** User uploaded their own image — never overwritten automatically */
   logoCustom: boolean("logo_custom").notNull().default(false),
+  /** Paid by hand (transfer etc.) — charges must be marked as paid */
+  manual: boolean("manual").notNull().default(false),
+  /** When manual mode was switched on — earlier charges are never "overdue" */
+  manualSince: date("manual_since"),
   /** Send push reminders before/on payment day (for payments made by hand) */
   notify: boolean("notify").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -116,6 +123,20 @@ export const notificationLog = pgTable(
   (t) => [uniqueIndex("notification_log_once").on(t.subscriptionId, t.chargeDate, t.kind)],
 );
 
+/** Manual charges marked as paid. One row per subscription + charge date. */
+export const payments = pgTable(
+  "payments",
+  {
+    id: serial("id").primaryKey(),
+    subscriptionId: integer("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: "cascade" }),
+    chargeDate: date("charge_date").notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("payments_once").on(t.subscriptionId, t.chargeDate)],
+);
+
 /** Single-row app settings. */
 export const settings = pgTable("settings", {
   id: integer("id").primaryKey().default(1),
@@ -125,6 +146,7 @@ export const settings = pgTable("settings", {
 
 export type Card = typeof cards.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
+export type PaymentMethodKind = (typeof paymentMethodKind.enumValues)[number];
 export type PushSub = typeof pushSubscriptions.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
 export type PriceChange = typeof priceChanges.$inferSelect;

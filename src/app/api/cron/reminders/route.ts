@@ -28,6 +28,8 @@ export async function GET(req: Request) {
 
   const results = [];
   for (const r of due) {
+    // Already paid by hand ahead of time — nothing to remind about.
+    if (subs.find((x) => x.id === r.subId)?.paidDates.has(r.chargeDate)) continue;
     // Claim the reminder first; if it's already logged (earlier run), skip it.
     const claimed = await db
       .insert(notificationLog)

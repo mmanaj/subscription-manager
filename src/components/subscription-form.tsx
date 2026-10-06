@@ -205,13 +205,14 @@ export function SubscriptionForm({
         Wystarczy jedna z dat. Kolejne płatności liczę od dnia płatności; data startu dolicza historię wstecz.
       </p>
 
-      <Field label="Karta" error={e.cardId}>
+      <Field label="Płatność" error={e.cardId}>
         <select name="cardId" defaultValue={sub?.cardId ?? ""} className={inputCls}>
           <option value="">— brak —</option>
           {cards.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
               {c.last4 ? ` ••${c.last4}` : ""}
+              {c.kind === "account" ? " (konto)" : ""}
             </option>
           ))}
         </select>
@@ -219,15 +220,26 @@ export function SubscriptionForm({
 
       <CategoryPicker name="category" initial={sub?.category ?? null} options={categories} />
 
-      <label className="flex items-start justify-between gap-4 rounded-[var(--radius-field)] bg-canvas p-4">
-        <span>
-          <span className="block text-sm font-medium text-ink">Przypominaj o płatności</span>
-          <span className="mt-0.5 block text-xs text-muted">
-            Dla płatności robionych ręcznie: powiadomienie push przed terminem i w dniu płatności. Ustawienia w Więcej → Powiadomienia.
+      <div className="divide-y divide-hairline rounded-[var(--radius-field)] bg-canvas px-4">
+        <label className="flex items-start justify-between gap-4 py-4">
+          <span>
+            <span className="block text-sm font-medium text-ink">Płacę ręcznie</span>
+            <span className="mt-0.5 block text-xs text-muted">
+              Przelew lub płatność, której nie pobiera karta. Każdą płatność odhaczasz jako opłaconą.
+            </span>
           </span>
-        </span>
-        <Switch name="notify" defaultChecked={sub?.notify ?? false} label="Przypominaj o płatności" />
-      </label>
+          <Switch name="manual" defaultChecked={sub?.manual ?? false} label="Płacę ręcznie" />
+        </label>
+        <label className="flex items-start justify-between gap-4 py-4">
+          <span>
+            <span className="block text-sm font-medium text-ink">Przypominaj o płatności</span>
+            <span className="mt-0.5 block text-xs text-muted">
+              Powiadomienie push przed terminem i w dniu płatności. Ustawienia w Więcej → Powiadomienia.
+            </span>
+          </span>
+          <Switch name="notify" defaultChecked={sub?.notify ?? false} label="Przypominaj o płatności" />
+        </label>
+      </div>
 
       <Field label="Status">
         <select name="status" defaultValue={sub?.status ?? "active"} className={inputCls}>

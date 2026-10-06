@@ -1,3 +1,4 @@
+import { Landmark } from "lucide-react";
 import { swatch } from "@/lib/colors";
 
 /** Monochrome network marks — recognisable shapes, no brand colours (the UI is achromatic). */
@@ -49,11 +50,13 @@ function NetworkMark({ brand, light, height }: { brand: string | null; light: bo
  * `width` drives everything, so it works as a 56px list icon or a ~200px preview.
  */
 export function CardThumb({
+  kind = "card",
   color,
   brand,
   last4,
   width = 56,
 }: {
+  kind?: "card" | "account";
   color: string | null;
   brand: string | null;
   last4?: string | null;
@@ -61,6 +64,27 @@ export function CardThumb({
 }) {
   const s = swatch(color);
   const light = s.fg !== "#ffffff";
+  if (kind === "account") {
+    // A bank account isn't a card: same footprint, bank glyph instead of chip and network.
+    return (
+      <span
+        aria-hidden
+        className="relative inline-flex shrink-0 flex-col items-center justify-center gap-[6%]"
+        style={{
+          width,
+          height: width / 1.586,
+          background: s.bg,
+          color: s.fg,
+          borderRadius: Math.max(4, width * 0.08),
+          boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)",
+          fontSize: width * 0.11,
+        }}
+      >
+        <Landmark size={width * 0.3} strokeWidth={1.75} />
+        {last4 && width >= 96 && <span className="tabular leading-none tracking-wider opacity-90">•• {last4}</span>}
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden

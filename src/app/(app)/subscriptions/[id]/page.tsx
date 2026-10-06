@@ -4,6 +4,7 @@ import { Bell, ExternalLink, Pencil } from "lucide-react";
 import { cancelSubscription, deleteSubscription, setStatus } from "@/app/actions";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PriceHistory } from "@/components/price-history";
+import { PaidButton } from "@/components/paid-button";
 import { LogoSheet } from "@/components/logo-sheet";
 import { logoDomainFor } from "@/lib/logo-domains";
 import { BigMoney, btn, Tag } from "@/components/ui";
@@ -20,6 +21,11 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
   if (!s) notFound();
 
   const upcoming = s.live ? chargesBetween(s, today, addMonths(today, 24)).slice(0, 6) : [];
+  // Manual subscriptions also list the last couple of past charges, so they can be ticked off late.
+  const recentPast = s.manual
+    ? chargesBetween(s, s.manualSince && s.manualSince > addDays(today, -62) ? s.manualSince : addDays(today, -62), addDays(today, -1), true).slice(-2)
+    : [];
+  const schedule = [...recentPast, ...upcoming];
   const past = chargesBetween(s, "1970-01-01", addDays(today, -1), true);
   const paidSoFar = sum(past.map((d) => s.myAmountOn(d)));
   const cardExp = s.card ? cardExpiry(s.card) : null;
@@ -88,6 +94,11 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
             {cardExp && s.next > cardExp && (
               <span className="mt-1 text-sm text-ember">Karta wygasa przed tą płatnością — zaktualizuj ją w serwisie.</span>
             )}
+            {s.manual && (
+              <span className="mt-3">
+                <PaidButton subId={s.id} date={s.next} paid={s.paidDates.has(s.next)} label />
+              </span>
+            )}
           </div>
         )}
       </header>
@@ -98,7 +109,10 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
           <Row label="Do">{s.endDate ? dateLong(s.endDate) : "bezterminowo"}</Row>
           {s.trialEndDate && <Row label="Okres próbny do">{dateLong(s.trialEndDate)}</Row>}
           <Row label="Cykl">{cycleLabel(s.intervalUnit, s.intervalCount)}</Row>
-          <Row label="Karta">{s.card ? `${s.card.name}${s.card.last4 ? ` ••${s.card.last4}` : ""}` : "—"}</Row>
+          <Row label="Płatność">
+            {s.card ? `${s.card.name}${s.card.last4 ? ` ••${s.card.last4}` : ""}` : "—"}
+            {s.manual && <span className="text-muted"> · ręcznie</span>}
+          </Row>
           <Row label="Rocznie">{money(perYear, s.currency)}</Row>
           <Row label="Średnio / mies.">{money(perYear / 12, s.currency)}</Row>
           <Row label="Zapłacono dotąd">
@@ -108,19 +122,29 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
         </dl>
 
         <div className="flex flex-col gap-6">
-          {upcoming.length > 0 && (
+          {schedule.length > 0 && (
             <div>
-              <h2 className="heading mb-2 text-lg">Kolejne płatności</h2>
+              <h2 className="heading mb-2 text-lg">{s.manual ? "Płatności" : "Kolejne płatności"}</h2>
               <ul className="flex flex-col divide-y divide-hairline">
-                {upcoming.map((d) => (
-                  <li key={d} className="flex justify-between py-2.5">
-                    <span className="text-ink">{dateLong(d)}</span>
-                    <span className="tabular text-ink-soft">
-                      {money(s.myAmountOn(d), s.currency)}
-                      {foreign && <span className="text-muted"> · {money(s.plnOn(d))}</span>}
-                    </span>
-                  </li>
-                ))}
+                {schedule.map((d) => {
+                  const paid = s.manual && s.paidDates.has(d);
+                  const overdue = s.manual && !paid && d < today && (!s.manualSince || d >= s.manualSince);
+                  return (
+                    <li key={d} className="flex items-center justify-between gap-3 py-2.5">
+                      <span className={d < today && !overdue ? "text-muted" : "text-ink"}>
+                        {dateLong(d)}
+                        {overdue && <span className="ml-2 text-xs text-ember">po terminie</span>}
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <span className={`tabular ${paid ? "text-muted line-through decoration-hairline" : "text-ink-soft"}`}>
+                          {money(s.myAmountOn(d), s.currency)}
+                          {foreign && <span className="text-muted"> · {money(s.plnOn(d))}</span>}
+                        </span>
+                        {s.manual && <PaidButton subId={s.id} date={d} paid={paid} />}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

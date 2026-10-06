@@ -10,7 +10,7 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   title: { default: "Subskrypcje", template: "%s · Subskrypcje" },
-  description: "Moje subskrypcje — ile, kiedy, z jakiej karty.",
+  description: "Moje subskrypcje — ile, kiedy, z czego płacę.",
   appleWebApp: { capable: true, title: "Subskrypcje", statusBarStyle: "default" },
   robots: { index: false, follow: false },
 };

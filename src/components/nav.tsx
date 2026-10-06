@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, LayoutGrid, ListChecks, Plus, Settings2 } from "lucide-react";
+import { LayoutGrid, ListChecks, Plus, Settings2, Wallet } from "lucide-react";
 
 const items = [
   { href: "/", label: "Pulpit", icon: LayoutGrid },
   { href: "/subscriptions", label: "Subskrypcje", icon: ListChecks },
-  { href: "/cards", label: "Karty", icon: CreditCard },
+  { href: "/cards", label: "Płatności", icon: Wallet },
   { href: "/settings", label: "Więcej", icon: Settings2 },
 ];
 

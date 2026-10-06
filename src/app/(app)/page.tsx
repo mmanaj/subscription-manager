@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { after } from "next/server";
 import { backfillLogos } from "@/lib/logos";
-import { AlertTriangle, CalendarClock, CreditCard, Hourglass, TrendingUp } from "lucide-react";
+import { AlertTriangle, CalendarClock, CircleAlert, CreditCard, Hourglass, TrendingUp } from "lucide-react";
+import { PaidButton } from "@/components/paid-button";
 import { CardTiles, CategoryRanking, ScopeSplit } from "@/components/breakdowns";
 import { PaymentCalendar } from "@/components/payment-calendar";
 import { PaymentRow } from "@/components/payment-row";
@@ -14,7 +15,7 @@ import { plural } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
-const alertIcon = { trial: Hourglass, card: CreditCard, ending: CalendarClock, fx: AlertTriangle, price: TrendingUp };
+const alertIcon = { trial: Hourglass, card: CreditCard, ending: CalendarClock, fx: AlertTriangle, price: TrendingUp, unpaid: CircleAlert };
 
 export default async function Dashboard(props: PageProps<"/">) {
   const { typ } = await props.searchParams;
@@ -33,7 +34,7 @@ export default async function Dashboard(props: PageProps<"/">) {
             Dodaj subskrypcję
           </Link>
           <Link href="/cards/new" className={btn.link}>
-            albo najpierw kartę
+            albo najpierw kartę lub konto
           </Link>
         </Empty>
       </div>
@@ -89,13 +90,15 @@ export default async function Dashboard(props: PageProps<"/">) {
               </>
             );
             return a.href ? (
-              <div key={i} className="rise" style={{ "--i": i + 1 } as React.CSSProperties}>
-                <Link
-                  href={a.href}
-                  className="-mx-3 flex items-center gap-3 rounded-[var(--radius-field)] px-3 py-3 transition-colors hover:bg-surface-alt active:bg-canvas"
-                >
+              <div
+                key={i}
+                className="rise -mx-3 flex items-center gap-2 rounded-[var(--radius-field)] pr-3 transition-colors hover:bg-surface-alt"
+                style={{ "--i": i + 1 } as React.CSSProperties}
+              >
+                <Link href={a.href} className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 active:opacity-70">
                   {body}
                 </Link>
+                {a.pay && <PaidButton subId={a.pay.subId} date={a.pay.date} paid={false} />}
               </div>
             ) : (
               <div key={i} style={{ "--i": i + 1 } as React.CSSProperties} className="rise flex items-center gap-3 py-3">
@@ -148,7 +151,7 @@ export default async function Dashboard(props: PageProps<"/">) {
             />
           </div>
           <div>
-            <SectionTitle>Z jakiej karty</SectionTitle>
+            <SectionTitle>Z czego płacę</SectionTitle>
             <CardTiles data={st.byCard} total={st.monthly} />
           </div>
           <p className="text-[13px] text-muted">

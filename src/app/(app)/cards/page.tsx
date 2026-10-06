@@ -8,7 +8,7 @@ import { cardExpiry, loadAll, sum, type EnrichedSub } from "@/lib/data";
 import { money, relative } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Karty" };
+export const metadata = { title: "Płatności" };
 
 export default async function CardsPage() {
   const { cards, subs, today } = await loadAll();
@@ -24,18 +24,18 @@ export default async function CardsPage() {
   return (
     <div>
       <PageHeader
-        title="Karty"
+        title="Płatności"
         action={
           <Link href="/cards/new" className={btn.primary}>
-            Dodaj kartę
+            Dodaj
           </Link>
         }
       />
 
       {cards.length === 0 ? (
-        <Empty title="Brak kart. Dodaj, żeby wiedzieć co z czego schodzi.">
+        <Empty title="Brak kart i kont. Dodaj, żeby wiedzieć, co z czego schodzi.">
           <Link href="/cards/new" className={btn.primary}>
-            Dodaj kartę
+            Dodaj kartę lub konto
           </Link>
         </Empty>
       ) : (
@@ -49,19 +49,19 @@ export default async function CardsPage() {
             return (
               <section key={c.id} className="rise" style={{ "--i": i } as React.CSSProperties}>
                 <header className="flex items-center gap-3 pb-3">
-                  <CardThumb color={c.color} brand={c.brand} width={56} />
+                  <CardThumb kind={c.kind} color={c.color} brand={c.brand} width={56} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate font-medium text-ink">{c.name}</h2>
                       {expired ? <Tag tone="danger">wygasła</Tag> : beforeNext ? <Tag tone="danger">wygasa</Tag> : null}
                     </div>
                     <p className="truncate text-sm text-muted">
-                      {[[c.brand, c.last4 && `••${c.last4}`].filter(Boolean).join(" "), expiry].filter(Boolean).join(" · ") || "—"}
+                      {[[c.kind === "account" ? "Konto bankowe" : c.brand, c.last4 && `••${c.last4}`].filter(Boolean).join(" "), expiry].filter(Boolean).join(" · ") || "—"}
                     </p>
                   </div>
                   <Link
                     href={`/cards/${c.id}/edit`}
-                    aria-label={`Edytuj kartę ${c.name}`}
+                    aria-label={`Edytuj: ${c.name}`}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-canvas hover:text-ink"
                   >
                     <Pencil size={16} />
@@ -69,7 +69,7 @@ export default async function CardsPage() {
                 </header>
 
                 {on.length ? <SubList subs={on} today={today} /> : (
-                  <p className="border-t border-hairline py-4 text-sm text-muted">Nic nie schodzi z tej karty.</p>
+                  <p className="border-t border-hairline py-4 text-sm text-muted">Nic stąd nie schodzi.</p>
                 )}
 
                 <footer className="flex items-center justify-between border-t border-hairline py-3 text-sm">
@@ -88,8 +88,8 @@ export default async function CardsPage() {
           {unassigned.length > 0 && (
             <section className="rise" style={{ "--i": sorted.length } as React.CSSProperties}>
               <header className="pb-3">
-                <h2 className="font-medium text-ink">Bez karty</h2>
-                <p className="text-sm text-muted">Przypisz kartę, żeby wiedzieć, co z czego schodzi.</p>
+                <h2 className="font-medium text-ink">Bez przypisanej płatności</h2>
+                <p className="text-sm text-muted">Przypisz kartę lub konto, żeby wiedzieć, co z czego schodzi.</p>
               </header>
               <SubList subs={unassigned} today={today} />
             </section>

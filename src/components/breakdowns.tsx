@@ -107,7 +107,7 @@ export function CardTiles({ data, total }: { data: Slice<Card | null>[]; total: 
         const inner = (
           <>
             {c ? (
-              <CardThumb color={c.color} brand={c.brand} width={64} />
+              <CardThumb kind={c.kind} color={c.color} brand={c.brand} width={64} />
             ) : (
               <span className="block h-[40px] w-[64px] rounded-[5px] border border-dashed border-muted/60" aria-hidden />
             )}
