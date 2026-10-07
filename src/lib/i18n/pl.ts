@@ -87,6 +87,8 @@ export const pl = {
     cancelledUntil: (d: string) => `anulowana · dostęp do ${d}`,
     ended: "zakończona",
     paid: "opłacone",
+    paidOn: (d: string) => `opłacone ${d}`,
+    dueOn: (d: string) => `termin ${d}`,
     overdue: "po terminie",
     manual: "ręcznie",
   },

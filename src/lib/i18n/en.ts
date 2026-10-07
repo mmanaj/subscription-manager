@@ -73,6 +73,8 @@ export const en: Dict = {
     cancelledUntil: (d) => `cancelled · access until ${d}`,
     ended: "ended",
     paid: "paid",
+    paidOn: (d) => `paid ${d}`,
+    dueOn: (d) => `due ${d}`,
     overdue: "overdue",
     manual: "manual",
   },

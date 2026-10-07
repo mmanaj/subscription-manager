@@ -10,7 +10,7 @@ import { logoDomainFor } from "@/lib/logo-domains";
 import { BigMoney, btn, Tag } from "@/components/ui";
 import { chargesBetween, monthlyFactor } from "@/lib/billing";
 import { addDays, addMonths } from "@/lib/dates";
-import { cardExpiry, loadOne, sum } from "@/lib/data";
+import { canMarkPaid, cardExpiry, loadOne, sum } from "@/lib/data";
 import { getI18n } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +29,8 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
     : [];
   const schedule = [...recentPast, ...upcoming];
   const past = chargesBetween(s, "1970-01-01", addDays(today, -1), true);
+  // Charges ticked off before their date count as paid too.
+  past.push(...[...s.paidDates.keys()].filter((d) => d >= today));
   const paidSoFar = sum(past.map((d) => s.myAmountOn(d)));
   const cardExp = s.card ? cardExpiry(s.card) : null;
   const perYear = s.myAmount * monthlyFactor(s.intervalUnit, s.intervalCount) * 12;
@@ -95,11 +97,10 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
             {cardExp && s.next > cardExp && (
               <span className="mt-1 text-sm text-ember">{t.detail.cardExpiresBefore}</span>
             )}
-            {s.manual && (
-              <span className="mt-3">
-                <PaidButton subId={s.id} date={s.next} paid={s.paidDates.has(s.next)} label />
-              </span>
-            )}
+            <span className="mt-3 flex flex-wrap items-center gap-3">
+              <PaidButton subId={s.id} date={s.next} paid={s.paidDates.has(s.next)} label />
+              {s.paidDates.get(s.next) && <span className="text-sm text-muted">{t.status.paidOn(dateShort(s.paidDates.get(s.next)!))}</span>}
+            </span>
           </div>
         )}
       </header>
@@ -128,20 +129,22 @@ export default async function SubscriptionDetail(props: PageProps<"/subscription
               <h2 className="heading mb-2 text-lg">{s.manual ? t.detail.payments : t.detail.upcoming}</h2>
               <ul className="flex flex-col divide-y divide-hairline">
                 {schedule.map((d) => {
-                  const paid = s.manual && s.paidDates.has(d);
+                  const paidOn = s.paidDates.get(d);
+                  const paid = !!paidOn;
                   const overdue = s.manual && !paid && d < today && (!s.manualSince || d >= s.manualSince);
                   return (
                     <li key={d} className="flex items-center justify-between gap-3 py-2.5">
                       <span className={d < today && !overdue ? "text-muted" : "text-ink"}>
                         {dateLong(d)}
                         {overdue && <span className="ml-2 text-xs text-ember">{t.status.overdue}</span>}
+                        {paidOn && <span className="ml-2 text-xs text-muted">{t.status.paidOn(dateShort(paidOn))}</span>}
                       </span>
                       <span className="flex items-center gap-3">
                         <span className={`tabular ${paid ? "text-muted line-through decoration-hairline" : "text-ink-soft"}`}>
                           {money(s.myAmountOn(d), s.currency)}
                           {foreign && <span className="text-muted"> · {money(s.plnOn(d))}</span>}
                         </span>
-                        {s.manual && <PaidButton subId={s.id} date={d} paid={paid} />}
+                        {canMarkPaid(s, d, today) && <PaidButton subId={s.id} date={d} paid={paid} />}
                       </span>
                     </li>
                   );

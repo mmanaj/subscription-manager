@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Payment } from "@/lib/data";
+import { canMarkPaid, type Payment } from "@/lib/data";
 import { getI18n } from "@/lib/i18n/server";
 import { PaidButton } from "./paid-button";
 import { ScopeBadge } from "./scope";
@@ -23,19 +23,28 @@ export async function PaymentRow({ p, today }: { p: Payment; today: string }) {
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-ink">{s.name}</div>
           <div className="truncate text-sm text-muted">
-            {s.manual ? (p.paid ? t.status.paid : p.overdue ? <span className="text-ember">{t.status.overdue}</span> : t.status.manual) : relative(p.date, today)}
-            {" · "}
-            {s.manual ? relative(p.date, today) : f.cycle(s.intervalUnit, s.intervalCount)}
+            {p.paidOn ? (
+              <>
+                {t.status.paidOn(dateShort(p.paidOn))}
+                {p.paidOn !== p.due && ` · ${t.status.dueOn(dateShort(p.due))}`}
+              </>
+            ) : (
+              <>
+                {s.manual ? (p.paid ? t.status.paid : p.overdue ? <span className="text-ember">{t.status.overdue}</span> : t.status.manual) : relative(p.date, today)}
+                {" · "}
+                {s.manual ? relative(p.date, today) : f.cycle(s.intervalUnit, s.intervalCount)}
+              </>
+            )}
           </div>
         </div>
         <div className="text-right">
-          <div className={`tabular font-medium ${p.paid && s.manual ? "text-muted line-through decoration-hairline" : "text-ink"}`}>
+          <div className={`tabular font-medium ${p.paidOn || (p.paid && s.manual) ? "text-muted line-through decoration-hairline" : "text-ink"}`}>
             {money(p.amount, s.currency)}
           </div>
           {s.currency !== "PLN" && <div className="tabular text-xs text-muted">≈ {money(p.pln)}</div>}
         </div>
       </Link>
-      {s.manual && <PaidButton subId={s.id} date={p.date} paid={p.paid} />}
+      {canMarkPaid(s, p.due, today) && <PaidButton subId={s.id} date={p.due} paid={!!p.paidOn || (s.manual && p.paid)} />}
     </div>
   );
 }

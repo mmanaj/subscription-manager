@@ -23,8 +23,8 @@ export type EnrichedSub = Subscription & {
   myAmountOn: (date: ISODate) => number;
   /** My share on a given day, PLN */
   plnOn: (date: ISODate) => number;
-  /** Charge dates of a manual subscription marked as paid */
-  paidDates: Set<ISODate>;
+  /** Charge dates ticked off as paid → the day they were ticked off */
+  paidDates: Map<ISODate, ISODate>;
   /** My share converted to PLN, per charge */
   chargePLN: number;
   /** Average monthly cost in PLN (my share); 0 when not live */
@@ -55,7 +55,7 @@ function enrich(
   today: ISODate,
   priceEvents: (PriceEvent & { id: number })[],
   fullBleed: boolean | undefined,
-  paidDates: Set<ISODate>,
+  paidDates: Map<ISODate, ISODate>,
 ): EnrichedSub {
   const split = Math.max(1, s.splitWith);
   const myAmountOn = (d: ISODate) => amountOn(Number(s.amount), priceEvents, d) / split;
@@ -90,9 +90,11 @@ export async function loadAll() {
     getRates(),
     db.select().from(priceChanges).orderBy(asc(priceChanges.effectiveDate), asc(priceChanges.id)),
     db.select({ id: logos.subscriptionId, fullBleed: logos.fullBleed }).from(logos),
-    db.select({ subId: payments.subscriptionId, date: payments.chargeDate }).from(payments),
+    db.select({ subId: payments.subscriptionId, date: payments.chargeDate, paidAt: payments.paidAt }).from(payments),
   ]);
-  const paidFor = (id: number) => new Set(paid.filter((p) => p.subId === id).map((p) => p.date));
+  const tz = process.env.APP_TZ || "Europe/Warsaw";
+  const dayOf = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(at);
+  const paidFor = (id: number) => new Map(paid.filter((p) => p.subId === id).map((p) => [p.date, dayOf(p.paidAt)] as const));
   const bleed = new Map(logoMeta.map((l) => [l.id, l.fullBleed]));
   const eventsFor = (id: number) =>
     changes
@@ -109,12 +111,28 @@ export async function loadOne(id: number) {
 /** amount = my share in the subscription's currency, pln = same in PLN — both at that day's price */
 /**
  * amount = my share in the subscription's currency, pln = same in PLN — both at that day's price.
- * paid: automatic charges count as paid once their day has passed; manual ones only when marked.
+ * due: the scheduled charge date. date: when it happens — the day it was ticked off if paid early.
+ * paid: ticked off by hand, or (automatic charges) once their day has passed.
+ * paidOn: the day it was ticked off, when it was.
  */
-export type Payment = { sub: EnrichedSub; date: ISODate; amount: number; pln: number; paid: boolean; overdue: boolean };
+export type Payment = {
+  sub: EnrichedSub;
+  due: ISODate;
+  date: ISODate;
+  amount: number;
+  pln: number;
+  paid: boolean;
+  paidOn: ISODate | null;
+  overdue: boolean;
+};
 
 export function isPaid(sub: EnrichedSub, date: ISODate, today: ISODate) {
-  return sub.manual ? sub.paidDates.has(date) : date < today;
+  return sub.paidDates.has(date) || (!sub.manual && date < today);
+}
+
+/** Whether a charge can be ticked off by hand: any manual one, or an automatic one not yet due. */
+export function canMarkPaid(sub: EnrichedSub, due: ISODate, today: ISODate) {
+  return sub.manual || due >= today || sub.paidDates.has(due);
 }
 
 export function paymentsBetween(subs: EnrichedSub[], from: ISODate, to: ISODate, today: ISODate = todayFn()): Payment[] {
@@ -122,8 +140,10 @@ export function paymentsBetween(subs: EnrichedSub[], from: ISODate, to: ISODate,
     .flatMap((sub) =>
       chargesBetween(sub, from, to, sub.status === "cancelled" && !!sub.endDate).map((date) => {
         const paid = isPaid(sub, date, today);
+        const paidOn = sub.paidDates.get(date) ?? null;
         const overdue = sub.manual && !paid && date < today && (!sub.manualSince || date >= sub.manualSince);
-        return { sub, date, amount: sub.myAmountOn(date), pln: sub.plnOn(date), paid, overdue };
+        const when = paidOn && paidOn < date ? paidOn : date;
+        return { sub, due: date, date: when, amount: sub.myAmountOn(date), pln: sub.plnOn(date), paid, paidOn, overdue };
       }),
     )
     .sort((a, b) => a.date.localeCompare(b.date) || b.pln - a.pln);
@@ -196,7 +216,7 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope:
     currency: p.sub.currency,
     pln: p.pln,
   }));
-  const next12m = sum(paymentsBetween(subs, today, addDays(addMonths(today, 12), -1)).map((p) => p.pln));
+  const next12m = sum(paymentsBetween(subs, today, addDays(addMonths(today, 12), -1)).filter((p) => !p.paidOn).map((p) => p.pln));
 
   /** Monthly total per key, biggest first, keeping the subscriptions behind each slice. */
   const group = <K>(key: (s: EnrichedSub) => K, label: (k: K) => string) => {
@@ -224,7 +244,7 @@ export function dashboardStats(data: Awaited<ReturnType<typeof loadAll>>, scope:
     title: t.alerts.unpaid(p.sub.name),
     detail: t.alerts.unpaidDetail(money(p.amount, p.sub.currency), dateShort(p.date)),
     href: `/subscriptions/${p.sub.id}`,
-    pay: { subId: p.sub.id, date: p.date },
+    pay: { subId: p.sub.id, date: p.due },
   }));
   for (const s of live) {
     if (s.trial && s.trialEndDate && s.trialEndDate <= addDays(today, 7)) {
